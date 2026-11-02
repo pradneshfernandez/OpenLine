@@ -1,0 +1,31 @@
+# Secrets — never commit keys or phone numbers
+.env
+.env.*
+!.env.example
+
+# Python (apps/api)
+__pycache__/
+*.py[oc]
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+apps/api/storage/
+
+# Node (apps/web)
+node_modules/
+dist/
+*.log
+
+# Editors / OS
+.idea/
+.vscode/
+.DS_Store
+
+# Not part of the code repo (kept locally): planning docs, briefs, media, design kit
+/docs/
+/videos/
+/*.md
+!/README.md
+/*.zip
+/images.jpeg
