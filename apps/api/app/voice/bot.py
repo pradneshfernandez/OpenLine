@@ -29,6 +29,7 @@ from pipecat.processors.aggregators.llm_response_universal import (
 from pipecat.processors.audio.audio_buffer_processor import AudioBufferProcessor
 from pipecat.transports.base_transport import BaseTransport
 from pipecat.workers.runner import WorkerRunner
+from pipecat.utils.errors import ErrorCategory, classify_http_status_code
 
 from app.db import SessionLocal
 from app.models import FormVersion, Interview
@@ -61,6 +62,57 @@ def interview_voice(interview_id: int) -> dict:
         return project_voices(project)[lang_code(interview.language)]
 
 
+# Pipecat's failover only switches on errors it calls permanent (bad key, bad request). The ones
+# that actually hit a live call (quota used up, rate limit, 5xx, network) would leave the respondent
+# waiting on a model that keeps failing, so those retire the main model for the rest of the call.
+MID_CALL_FAILURES = {ErrorCategory.QUOTA, ErrorCategory.RATE_LIMIT, ErrorCategory.SERVER,
+                     ErrorCategory.CONNECTIVITY}
+
+
+def error_category(error) -> ErrorCategory:
+    """Pipecat's category, or one read from the HTTP code google-genai keeps in `exception.code`
+    (Pipecat doesn't read that attribute, so every Gemini API error arrives as UNKNOWN)."""
+    category = error.category or ErrorCategory.UNKNOWN
+    code = getattr(error.exception, "code", None)
+    if category == ErrorCategory.UNKNOWN and isinstance(code, int):
+        category = classify_http_status_code(code)
+    return category
+
+
+LLM_COOLDOWN_SECS = 8.0  # a model benched by a rate limit / timeout is tried again after this
+
+
+def fail_over_on(llm, cooldown: float = LLM_COOLDOWN_SECS, on_restored=None) -> None:
+    """Make `llm` step aside in an LLMSwitcher when a failure hits it mid-call.
+
+    Permanent errors (bad key, bad request) bench it for the rest of the call. Mid-call failures
+    (quota, rate limit, 5xx, network) bench it for `cooldown` seconds, then `on_restored(llm)` runs,
+    so a call whose models are all rate-limited can re-run the failed turn instead of going silent.
+    """
+    @llm.event_handler("on_error")
+    async def _on_error(processor, error):
+        category = error_category(error)
+        if not processor.is_usable or not (category in MID_CALL_FAILURES or category.is_permanent):
+            return
+        logger.warning(f"{processor}: {category.value} error, failing over to the backup LLM")
+        await processor.set_usable(False)
+        if category.is_permanent:
+            return
+
+        async def restore():
+            await asyncio.sleep(cooldown)
+            await processor.set_usable(True)
+            if on_restored is not None:
+                await on_restored(processor)
+
+        task = asyncio.create_task(restore())
+        _cooldowns.add(task)
+        task.add_done_callback(_cooldowns.discard)
+
+
+_cooldowns: set[asyncio.Task] = set()
+
+
 async def run_interview(transport: BaseTransport, interview_id: int, sample_rate: int = 8000,
                         handle_sigint: bool = False) -> None:
     cfg = voice_settings()
@@ -79,7 +131,17 @@ async def run_interview(transport: BaseTransport, interview_id: int, sample_rate
     if backup is not None:
         # If the main model stops working mid-call (outage, model retired), switch to the backup
         # and re-run the turn that failed, so the respondent's answer isn't lost.
-        llm = LLMSwitcher(llms=[llm, backup], strategy_type=ServiceSwitcherStrategyFailover)
+        main = llm
+        llm = LLMSwitcher(llms=[main, backup], strategy_type=ServiceSwitcherStrategyFailover)
+
+        async def _rerun_if_stuck(service):
+            # Both models were down: the switcher stayed on this one, so the turn never ran.
+            if llm.strategy.active_service is service:
+                logger.warning(f"Interview {interview_id}: {service.name} is back, re-running the turn")
+                await worker.queue_frame(LLMRunFrame())
+
+        for service in (main, backup):
+            fail_over_on(service, on_restored=_rerun_if_stuck)
 
     context = LLMContext()
     policy = TurnPolicy(sample_rate=sample_rate)  # Smart Turn + per-question waits + interruption rules

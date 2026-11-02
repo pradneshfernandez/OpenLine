@@ -102,3 +102,26 @@ def test_an_answer_resets_the_silence_count(trial_version):  # noqa: F811
     b.answer(34)  # next question starts fresh
     b.enter(b.flow.on_idle())
     assert b.said[-1].startswith("Sorry") and b.interview()[0] == "in-progress"
+
+
+def test_read_back_needs_a_real_yes():
+    from app.voice.flow import confirmation_holds
+    assert confirmation_holds("haan", 5) and confirmation_holds("हाँ, पाँच", 5) and confirmation_holds("ஆமா", 5)
+    assert confirmation_holds("yes 5", 5) and confirmation_holds("5", 5)
+    assert not confirmation_holds("No.", 5)                       # live, Nov 3: recorded as confirmed
+    assert not confirmation_holds("नहीं, छह", 5) and not confirmation_holds("இல்லை", 5)
+    assert not confirmation_holds("பானிக்கி problem. தண்ணி வரவே இல்ல", "yes", "Yes")  # unrelated answer
+    assert confirmation_holds("Yes", "1", "Yes")
+
+
+def test_llm_confirmed_but_respondent_said_no_is_not_saved(trial_version):  # noqa: F811
+    bot = Bot(trial_version, "en")
+    bot.open()
+    bot.answer("yes")                                                  # consent
+    bot.answer("34")                                                   # age
+    res = bot.answer("5", heard="We are five, me, my wife and 3 kids")
+    assert res["status"] == "confirm" and res["say"] == "5?"            # 5 isn't among the digits
+    res = bot.answer("5", heard="No.", confirmed=True)
+    assert res["status"] == "not_confirmed"                            # the LLM can't override a "no"
+    res = bot.answer("5", heard="We are 5", confirmed=True)
+    assert res["status"] == "ok"

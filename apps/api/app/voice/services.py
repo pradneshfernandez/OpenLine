@@ -22,7 +22,8 @@ def make_stt(lang: str, sample_rate: int = 8000):
     if cfg.stt_auto_language:
         settings = GnaniSTTService.Settings(
             model="prisma-v3.0", language="indic-auto",
-            language_candidates=[Language.EN_IN, Language.HI_IN], format="transcribe",
+            language_candidates=[c.strip() for c in cfg.stt_languages.split(",") if c.strip()],
+            format=cfg.stt_format,
         )
     else:
         settings = GnaniSTTService.Settings(

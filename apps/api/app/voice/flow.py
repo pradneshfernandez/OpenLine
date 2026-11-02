@@ -47,6 +47,29 @@ def number_mismatch(item: Item, value: Any, heard: str) -> Any | None:
     return int(v) if v.is_integer() else v
 
 
+# Words that accept or reject a read-back ("5?"), in English, Hindi (both scripts) and Tamil.
+YES_WORDS = {"yes", "yeah", "yep", "yup", "correct", "right", "haan", "han", "ha", "ji", "sahi", "theek",
+             "हाँ", "हां", "हा", "जी", "सही", "ठीक", "ஆமா", "ஆமாம்", "ஆம்", "சரி"}
+NO_WORDS = {"no", "nope", "not", "wrong", "nahi", "nahin", "na", "galat",
+            "नहीं", "नही", "ना", "गलत", "இல்லை", "இல்ல", "இல்லே", "தப்பு"}
+
+
+def confirmation_holds(heard: str, value: Any, label: str | None = None) -> bool:
+    """After a read-back, does what the respondent said confirm `value`?
+
+    An explicit "no" never confirms. Otherwise a "yes"-word, or the value itself said again,
+    does. Anything else (an answer to a different question, noise) doesn't.
+    """
+    words = set(re.findall(r"[\w\u0900-\u097F\u0B80-\u0BFF]+", (heard or "").lower()))
+    if words & NO_WORDS:
+        return False
+    if words & YES_WORDS:
+        return True
+    said = {str(value).lower()} | ({label.lower()} if label else set())
+    digits = set(re.findall(r"\d+(?:\.\d+)?", heard or ""))
+    return bool(said & words or said & digits or (label and label.lower() in (heard or "").lower()))
+
+
 def _escape(text: str) -> str:
     """Flows renders {{ key }} placeholders in spoken text; form text must not be rendered."""
     return text.replace("{{", "\\{{")
@@ -64,6 +87,7 @@ class SurveyFlow:
         self.consent_name: str | None = None
         self.idle_count = 0  # silences in a row on the current question
         self.invalid: dict[tuple, int] = {}  # invalid answers per question
+        self.read_back: dict[tuple, Any] = {}  # value read back for confirmation, per question
 
     # ------------------------------------------------------------------ prompts
 
@@ -131,7 +155,9 @@ class SurveyFlow:
             "dont_know_or_refuse; wants to change an earlier answer call correct_answer; asks to be "
             "called later call call_back_later. If they ask what the question means, explain it "
             "briefly without changing its meaning. If a tool returns status 'invalid' or "
-            "'confirm', say its 'say' text and wait for the answer.")
+            "'confirm', say its 'say' text and wait for the answer. If it returns 'not_confirmed', "
+            "the respondent didn't confirm: ask the question again in your own short words and wait. "
+            "Only set confirmed=true when the respondent said yes to the value you read back.")
         return "\n".join(lines)
 
     # ------------------------------------------------------------------ nodes
@@ -290,13 +316,23 @@ class SurveyFlow:
         confidence = args.get("confidence")
         confirmed = bool(args.get("confirmed"))
         heard = args.get("heard_text") or ""
+        label = next((o["label"] for o in item.options if o["name"] == value), None)
+        if confirmed and item.key in self.read_back:
+            # The LLM says "confirmed"; check the respondent's words really are a yes (live, Nov 3:
+            # "5?" → "No." was recorded as confirmed).
+            if not confirmation_holds(heard, self.read_back[item.key], label):
+                self.read_back.pop(item.key, None)
+                return {"status": "not_confirmed",
+                        "say": f"Ask the question again: {item.text}"}, None
         if (item.type == "select_one" and not confirmed and confidence is not None
                 and confidence < self.cfg.confirm_below_confidence):
-            label = next((o["label"] for o in item.options if o["name"] == value), value)
-            return {"status": "confirm", "say": f"{label}?"}, None
+            self.read_back[item.key] = value
+            return {"status": "confirm", "say": f"{label or value}?"}, None
         if not confirmed and (check := number_mismatch(item, value, heard)) is not None:
             # The digits the speech model heard disagree with the LLM's number: ask, don't guess.
+            self.read_back[item.key] = check
             return {"status": "confirm", "say": f"{check}?"}, None
+        self.read_back.pop(item.key, None)
         res = self.runner.answer(item.name, value)
         if not res.ok:
             logger.info(f"{item.name}: invalid answer {value!r}: {res.message}")

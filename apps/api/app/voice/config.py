@@ -47,6 +47,11 @@ class VoiceSettings(BaseSettings):
     voice_en: str = "Nalini"
     voice_hi: str = "Nalini"
     stt_auto_language: bool = False  # Prisma v3.0 indic-auto for mid-call language switching
+    # With auto language: the 2-4 languages Prisma may hear (respondents switch between them mid-sentence).
+    stt_languages: str = "en-IN,hi-IN,ta-IN"
+    # "transcribe" writes numbers as digits (the number check relies on that); "codemix" keeps English
+    # words in Latin script but writes numbers as words.
+    stt_format: str = "transcribe"
 
     survey_org: str = "the research team"
     # Smart Turn decides the end of a turn; VAD only marks pauses, at the 0.2 s it was trained with.
