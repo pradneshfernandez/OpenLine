@@ -173,9 +173,61 @@ def clean_phone_ready() -> None:
           {"survey": survey, "choices": choices, "settings": settings})
 
 
+def demo_form() -> None:
+    """The public demo survey (/demo): short, and built so each OpenLine feature has a place to show."""
+    hdr = ["type", "name", f"label::{EN}", f"label::{HI}", "required", "relevant", "constraint",
+           f"constraint_message::{EN}", f"constraint_message::{HI}"]
+
+    def row(t, n, en="", hi="", required="", relevant="", constraint="", msg_en="", msg_hi=""):
+        return [t, n, en, hi, required, relevant, constraint, msg_en, msg_hi]
+
+    survey = [
+        hdr,
+        row("start", "start"),
+        row("end", "end"),
+        row("select_one yesno", "consent",
+            "This is a demo of OpenLine, an AI that runs phone surveys. It takes about two minutes. "
+            "The call is recorded for playback, so please don't share real personal details. Shall we begin?",
+            "यह OpenLine का डेमो है, एक AI जो फ़ोन पर सर्वे करता है। इसमें लगभग दो मिनट लगेंगे। कॉल रिकॉर्ड "
+            "की जा रही है, इसलिए कृपया अपनी असली निजी जानकारी न दें। क्या हम शुरू करें?", required="yes"),
+        row("begin_group", "main", "Survey", "सर्वे", relevant="${consent} = 'yes'"),
+        row("integer", "age", "How old are you?", "आपकी उम्र कितनी है?", "yes", "",
+            ". >= 18 and . <= 100", "Please tell me an age between 18 and 100.",
+            "कृपया 18 से 100 के बीच की उम्र बताइए।"),
+        row("integer", "hh_size", "How many people live in your household, including you?",
+            "आपके घर में आपको मिलाकर कितने लोग रहते हैं?", "yes", "",
+            ". >= 1 and . <= 30", "Please tell me a number between 1 and 30.",
+            "कृपया 1 से 30 के बीच की संख्या बताइए।"),
+        row("select_one yesno", "children_school", "Do any children in your household go to school?",
+            "क्या आपके घर का कोई बच्चा स्कूल जाता है?", "yes"),
+        row("integer", "num_children", "How many of them go to school?",
+            "उनमें से कितने बच्चे स्कूल जाते हैं?", "yes", "${children_school} = 'yes'",
+            ". >= 1 and . < ${hh_size}",
+            "That should be at least 1 and fewer than the people in your household.",
+            "यह संख्या कम से कम 1 और घर के लोगों से कम होनी चाहिए।"),
+        row("select_one water", "water_source", "Where does your household mostly get its drinking water from?",
+            "आपके घर में पीने का पानी ज़्यादातर कहाँ से आता है?", "yes"),
+        row("text", "main_problem", "What is the biggest problem in your area?",
+            "आपके इलाके की सबसे बड़ी समस्या क्या है?", "yes"),
+        row("end_group", ""),
+    ]
+    choices = [["list_name", "name", f"label::{EN}", f"label::{HI}"],
+               ["yesno", "yes", "Yes", "हाँ"], ["yesno", "no", "No", "नहीं"],
+               ["yesno", "-98", "Don't know", "पता नहीं"], ["yesno", "-99", "Refused", "जवाब नहीं देना चाहते"],
+               ["water", "piped", "A tap at home", "घर में नल"],
+               ["water", "handpump", "A hand pump or borewell", "हैंडपंप या बोरवेल"],
+               ["water", "tanker", "A water tanker", "पानी का टैंकर"],
+               ["water", "other", "Somewhere else", "कहीं और से"],
+               ["water", "-98", "Don't know", "पता नहीं"], ["water", "-99", "Refused", "जवाब नहीं देना चाहते"]]
+    settings = [["form_title", "form_id", "version", "default_language"],
+                ["OpenLine demo survey", "openline_demo", "1", EN]]
+    write(OUT.parent / "demo" / "openline_demo.xlsx", {"survey": survey, "choices": choices, "settings": settings})
+
+
 if __name__ == "__main__":
     clean_phone_ready()
     phone_rules_test()
     broken_form()
     kobo_extras_form()
+    demo_form()
     print(f"Wrote test forms to {OUT}")

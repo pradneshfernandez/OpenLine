@@ -7,7 +7,7 @@ from tests.test_survey_flow import trial_version  # noqa: F401  (fixture)
 
 def test_page_and_form_picker(client, trial_version):  # noqa: F811
     page = client.get("/phone-sim")
-    assert page.status_code == 200 and "8 kHz" in page.text and "audio/x-mulaw" in page.text
+    assert page.status_code == 200 and "8 kHz" in page.text and "/static/phone_line.js" in page.text
     forms = client.get("/api/phone-sim/forms").json()
     assert any(f["version_id"] == trial_version for f in forms)
 

@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Try OpenLine</title>
+<meta name="description" content="Talk to OpenLine, an AI phone survey interviewer, in a two-minute mock survey.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500&family=IBM+Plex+Sans+Devanagari:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=Noto+Sans+Tamil:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#121417; --text2:#424851; --text3:#5c636d; --border:#c3c8ce; --line:#dcdfe3;
+  --canvas:#f3f4f5; --surface:#fff; --soft:#f8f9fa; --brand:#1f4fa3; --tint:#eaf0fa; --tintbd:#b9cbea;
+  --focus:#ffcc00; --side:#16191d;
+  --ok-fg:#1d6b3a; --ok-bg:#e7f3ec; --ok-bd:#a9d3b8;
+  --wa-fg:#7a4b00; --wa-bg:#fdf3dc; --wa-bd:#ecc979;
+  --da-fg:#a3221b; --da-bg:#fbe9e7; --da-bd:#efb2ab;
+  --in-fg:#0b5e66; --in-bg:#e4f3f4; --in-bd:#a6d3d7;
+  --hang:#c8302a;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --ink:#e8eaee; --text2:#b8bec7; --text3:#9aa1ad; --border:#3a404a; --line:#2c313a;
+  --canvas:#111317; --surface:#1a1d23; --soft:#20242b; --brand:#8fb0ff; --tint:#1d2a44; --tintbd:#2f4675;
+  --ok-fg:#7fd6a2; --ok-bg:#16301f; --ok-bd:#2a5a3b; --wa-fg:#f0c46b; --wa-bg:#33270f; --wa-bd:#5c4718;
+  --da-fg:#ff9a8f; --da-bg:#3a1714; --da-bd:#6b2a24; --in-fg:#7fd3da; --in-bg:#0f2e31; --in-bd:#215257;
+}}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--canvas);color:var(--ink);font:16px/1.5 'IBM Plex Sans','IBM Plex Sans Devanagari','Noto Sans Tamil',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:var(--brand)}
+.wrap{max-width:1180px;margin:0 auto;padding:0 20px}
+header{display:flex;align-items:center;justify-content:space-between;padding:18px 0}
+.logo{display:flex;align-items:center;gap:10px;font-weight:600;font-size:18px}
+.mark{width:30px;height:30px;border-radius:4px;background:var(--focus);color:var(--side);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700}
+.tagline{font-size:14px;color:var(--text3)}
+.hero{padding:18px 0 22px}
+.hero h1{font-size:clamp(28px,4vw,40px);line-height:1.15;letter-spacing:-.015em;font-weight:600}
+.hero p{color:var(--text2);margin-top:8px;max-width:760px}
+.grid{display:grid;grid-template-columns:340px 1fr;gap:18px;align-items:start}
+@media (max-width:900px){.grid{grid-template-columns:1fr}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:8px}
+.ph{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--line);font-weight:600;font-size:15px}
+.pb{padding:14px 16px}
+label.k{display:block;font-size:13px;color:var(--text3);font-weight:600;margin-bottom:6px}
+select{width:100%;padding:10px;font:inherit;color:inherit;background:var(--soft);border:1px solid var(--border);border-radius:6px}
+.callbtn{width:100%;margin-top:14px;padding:15px;border:0;border-radius:999px;font:600 18px 'IBM Plex Sans',sans-serif;color:#fff;background:var(--brand);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px}
+.callbtn.live{background:var(--hang)}
+.callbtn:disabled{opacity:.55;cursor:default}
+.callbtn svg{width:20px;height:20px}
+.status{font-size:14px;color:var(--text3);margin-top:10px;min-height:21px;text-align:center}
+.meters{display:grid;grid-template-columns:auto 1fr;gap:6px 10px;align-items:center;font-size:13px;color:var(--text3);margin-top:12px}
+.meter{height:8px;background:var(--line);border-radius:4px;overflow:hidden}
+.meter i{display:block;height:100%;width:0;background:var(--brand);transition:width .08s}
+.note{font-size:13px;color:var(--text2);background:var(--soft);border:1px solid var(--line);border-radius:6px;padding:10px 12px;margin-top:12px}
+.timer{font:500 13px 'IBM Plex Mono',monospace;color:var(--text3)}
+.try li{list-style:none;display:flex;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);font-size:14px}
+.try li:last-child{border-bottom:0}
+.try .tick{flex:0 0 22px;height:22px;border-radius:50%;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:12px;color:transparent;margin-top:1px}
+.try li.done .tick{background:var(--ok-fg);border-color:var(--ok-fg);color:var(--surface)}
+.try li.tip .tick{border-style:dashed}
+.try b{font-weight:600}
+.try small{display:block;color:var(--text3);font-size:12.5px}
+.right{display:grid;gap:18px}
+.convo{height:430px;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:10px;scroll-behavior:smooth}
+.empty{color:var(--text3);font-size:14px;margin:auto;text-align:center;max-width:380px}
+.b{max-width:82%;padding:9px 13px;border-radius:8px;border:1px solid;font-size:16px;line-height:1.55}
+.b .who{font-size:12px;font-weight:600;margin-bottom:1px;display:flex;gap:8px;align-items:center}
+.b.agent{align-self:flex-start;background:var(--tint);border-color:var(--tintbd)} .b.agent .who{color:var(--brand)}
+.b.respondent{align-self:flex-end;background:var(--surface);border-color:var(--line)} .b.respondent .who{color:var(--text3)}
+.chip{display:inline-flex;align-items:center;height:20px;padding:0 7px;border-radius:3px;border:1px solid;font-size:11.5px;font-weight:600;white-space:nowrap}
+.ok{color:var(--ok-fg);background:var(--ok-bg);border-color:var(--ok-bd)}
+.wa{color:var(--wa-fg);background:var(--wa-bg);border-color:var(--wa-bd)}
+.da{color:var(--da-fg);background:var(--da-bg);border-color:var(--da-bd)}
+.in{color:var(--in-fg);background:var(--in-bg);border-color:var(--in-bd)}
+.ne{color:var(--text2);background:var(--soft);border-color:var(--line)}
+table{width:100%;border-collapse:collapse;font-size:14.5px}
+th{text-align:left;font-size:12.5px;color:var(--text3);font-weight:600;padding:8px 16px;border-bottom:1px solid var(--line);background:var(--soft)}
+td{padding:9px 16px;border-bottom:1px solid var(--line);vertical-align:top}
+td .heard{color:var(--text3);font-size:13px}
+td .v{font-weight:600}
+tr.stale td{opacity:.45;text-decoration:line-through}
+.chips{display:flex;flex-wrap:wrap;gap:4px}
+.after{display:none} .after.show{display:block}
+audio{width:100%;margin-top:6px}
+.how{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:26px 0}
+@media (max-width:900px){.how{grid-template-columns:1fr 1fr}}
+@media (max-width:520px){.how{grid-template-columns:1fr}}
+.how .panel{padding:14px 16px}
+.how h3{font-size:15px;font-weight:600;margin-bottom:4px}
+.how p{font-size:13.5px;color:var(--text2)}
+.how .n{font:500 12px 'IBM Plex Mono',monospace;color:var(--brand)}
+footer{font-size:13px;color:var(--text3);padding:10px 0 30px}
+@media (max-width:600px){.tagline{display:none}.convo{height:340px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="logo"><span class="mark">OL</span>OpenLine</div>
+    <div class="tagline">AI phone surveys in Indian languages · Gnani speech + Pipecat</div>
+  </header>
+
+  <section class="hero">
+    <h1>Talk to an AI survey interviewer</h1>
+    <p>A two-minute mock household survey over a phone-quality line (8 kHz, like a real call). Answer in English or Hindi,
+      or mix them. Watch each answer get coded, checked and saved live.</p>
+  </section>
+
+  <div class="grid">
+    <div style="display:grid;gap:18px">
+      <div class="panel">
+        <div class="ph">Your call <span class="timer" id="timer"></span></div>
+        <div class="pb">
+          <label class="k" for="lang">The agent speaks</label>
+          <select id="lang"><option value="en">English</option><option value="hi">हिन्दी (Hindi)</option></select>
+          <button class="callbtn" id="call" disabled>
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25 11.4 11.4 0 0 0 3.6.57 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.57a1 1 0 0 1-.25 1z"/></svg>
+            <span id="calltext">Start the call</span></button>
+          <p class="status" id="status">Checking the line…</p>
+          <div class="meters">
+            <span>You</span><div class="meter"><i id="mYou"></i></div>
+            <span>Agent</span><div class="meter"><i id="mAgent"></i></div>
+          </div>
+          <div class="note" id="mixnote" hidden></div>
+          <div class="note">Use headphones so the agent doesn't hear itself. The call is recorded for playback;
+            please don't share real personal details.</div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="ph">Try these</div>
+        <ul class="pb try" id="try"></ul>
+      </div>
+    </div>
+
+    <div class="right">
+      <div class="panel">
+        <div class="ph">Conversation <span class="chip ne" id="callstate">not started</span></div>
+        <div class="convo" id="convo"><p class="empty">Press <b>Start the call</b> and allow the microphone.
+          The agent will greet you and ask for consent.</p></div>
+      </div>
+      <div class="panel">
+        <div class="ph">What OpenLine saved</div>
+        <table><thead><tr><th style="width:34%">Question</th><th>Answer</th><th style="width:30%">How</th></tr></thead>
+          <tbody id="answers"><tr><td colspan="3" style="color:var(--text3)">Answers appear here as you give them.</td></tr></tbody></table>
+        <div class="pb after" id="after">
+          <label class="k">Recording (you on the left channel, the agent on the right)</label>
+          <audio id="rec" controls preload="none"></audio>
+          <p class="status" id="secondpass" style="text-align:left"></p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <section class="how">
+    <div class="panel"><div class="n">1 · LISTEN</div><h3>Gnani Prisma</h3><p>Speech-to-text built for Indian phone calls, including speech that switches language mid-sentence.</p></div>
+    <div class="panel"><div class="n">2 · INTERPRET</div><h3>LLM, tools only</h3><p>The model maps what you said to the question's allowed answers through typed tool calls.</p></div>
+    <div class="panel"><div class="n">3 · DECIDE</div><h3>The form runner</h3><p>Skip logic, ranges and corrections come from the survey form (XLSForm), never from the model.</p></div>
+    <div class="panel"><div class="n">4 · SPEAK</div><h3>Gnani Timbre</h3><p>Questions are read word for word, so every respondent hears the same question.</p></div>
+  </section>
+  <footer>OpenLine · built on Pipecat and Gnani · this demo uses the same pipeline as a phone call, minus the phone network.</footer>
+</div>
+
+<script src="/static/phone_line.js"></script>
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const status = (html) => { $("status").innerHTML = html; };
+
+// Things to try. `test` ticks an item from the live call data; items without one are tips.
+const DEVA = /[ऀ-ॿ]/, TAML = /[஀-௿]/, LATN = /[A-Za-z]{2,}/;
+const scripts = (t) => [DEVA, TAML, LATN].filter((r) => r.test(t)).length;
+const TRY = [
+  { b: "Change an earlier answer", s: "“Actually, I’m 35, not 25.” The form goes back and re-checks what depends on it.",
+    test: (d) => d.answers.some((a) => a.corrected) },
+  { b: "Say you don’t know", s: "“Pata nahi” or “I don’t know” is saved as a don’t-know code, not a guess.",
+    test: (d) => d.answers.some((a) => a.code === "dk" || a.code === "refused") },
+  { b: "Give an impossible answer", s: "Say you’re 200. The form’s range check makes the agent ask again.",
+    test: (d) => d.answers.some((a) => a.attempts > 1 || a.code === "unclear") },
+  { b: "Get a number read back", s: "Say a number in words with other words around it. If the digits disagree, it asks “5?”.",
+    test: (d) => d.turns.some((t) => t.speaker === "agent" && /^\s*[\d.]+\s*\?\s*$/.test(t.text)) },
+  { b: "Mix languages", s: "“Ghar mein five log hain.” Hinglish is heard as one answer.",
+    test: (d) => d.turns.some((t) => t.speaker === "respondent" && scripts(t.text) >= 2) },
+  { b: "Stay silent for a while", s: "After about 8 seconds it says “Sorry, I didn’t hear you” and asks again.",
+    test: (d) => d.turns.some((t) => t.speaker === "agent" && /didn’t hear you|didn't hear you|आवाज़ नहीं आई/.test(t.text)) },
+  { b: "Interrupt with two words", s: "Say “ek minute” while it talks: it stops. A single “haan” doesn’t stop it." },
+  { b: "Pause in the middle of a number", s: "“I am… thirty-two.” It waits longer on number questions." },
+];
+$("try").innerHTML = TRY.map((x, i) => `<li id="try${i}" class="${x.test ? "" : "tip"}"><span class="tick">✓</span>
+  <div><b>${x.b}</b><small>${x.s}</small></div></li>`).join("");
+
+let line = null, callId = null, poll = null, t0 = 0, clock = null, lastTurns = -1;
+
+const level = (who, v) => { $(who === "you" ? "mYou" : "mAgent").style.width = Math.min(100, v * 300) + "%"; };
+
+function badges(a) {
+  const c = [];
+  if (a.code === "dk") c.push(`<span class="chip ne">don’t know</span>`);
+  if (a.code === "refused") c.push(`<span class="chip ne">refused</span>`);
+  if (a.code === "unclear") c.push(`<span class="chip da">unclear after 3 tries</span>`);
+  if (a.corrected) c.push(`<span class="chip wa">corrected</span>`);
+  if (a.attempts > 1 && a.code !== "unclear") c.push(`<span class="chip wa">${a.attempts} tries</span>`);
+  if (!a.still_relevant) c.push(`<span class="chip ne">no longer asked</span>`);
+  if (a.second_pass_text) c.push(a.flagged ? `<span class="chip da">2nd pass disagrees</span>` : `<span class="chip ok">2nd pass agrees</span>`);
+  if (!c.length && !a.code) c.push(`<span class="chip ok">coded</span>`);
+  return `<div class="chips">${c.join("")}</div>`;
+}
+
+function render(d) {
+  const state = { queued: ["connecting", "ne"], "in-progress": ["live", "ok"], completed: ["completed", "ok"],
+                  partial: ["ended early", "wa"], refused: ["no consent", "wa"], failed: ["failed", "da"] }[d.status] || [d.status, "ne"];
+  $("callstate").className = `chip ${state[1]}`; $("callstate").textContent = state[0];
+  if (d.turns.length !== lastTurns) {
+    lastTurns = d.turns.length;
+    $("convo").innerHTML = d.turns.filter((t) => t.speaker !== "system" && t.text).map((t) => {
+      const lat = t.speaker === "agent" && t.latency_ms ? `<span class="chip ${t.latency_ms <= 1500 ? "ok" : t.latency_ms <= 3000 ? "wa" : "da"}">replied in ${(t.latency_ms / 1000).toFixed(1)} s</span>` : "";
+      return `<div class="b ${t.speaker}"><div class="who">${t.speaker === "agent" ? "Agent" : "You"} ${lat}</div>${esc(t.text)}</div>`;
+    }).join("") || `<p class="empty">Connecting…</p>`;
+    $("convo").scrollTop = $("convo").scrollHeight;
+  }
+  $("answers").innerHTML = d.answers.length ? d.answers.map((a) => `<tr class="${a.still_relevant ? "" : "stale"}">
+      <td>${esc(a.label.length > 70 ? a.label.slice(0, 68) + "…" : a.label)}</td>
+      <td><div class="v">${esc(a.code ? "—" : a.value)}</div><div class="heard">heard: “${esc(a.heard_text)}”</div>
+        ${a.second_pass_text ? `<div class="heard">2nd pass: “${esc(a.second_pass_text)}”</div>` : ""}</td>
+      <td>${badges(a)}</td></tr>`).join("")
+    : `<tr><td colspan="3" style="color:var(--text3)">Answers appear here as you give them.</td></tr>`;
+  TRY.forEach((x, i) => { if (x.test && x.test(d)) $("try" + i).classList.add("done"); });
+  if (d.has_recording && !$("rec").src) { $("rec").src = `/api/demo/calls/${d.id}/recording`; $("after").classList.add("show"); }
+  const sp = d.answers.filter((a) => a.second_pass_text).length;
+  $("secondpass").textContent = sp ? `Second pass: each answer clip was re-transcribed after the call (${sp} checked, ${d.answers.filter((a) => a.flagged).length} flagged for review).` : "";
+}
+
+async function refresh() {
+  if (!callId) return;
+  const r = await fetch(`/api/demo/calls/${callId}`);
+  if (r.ok) render(await r.json());
+}
+
+function tick() {
+  const s = Math.floor((Date.now() - t0) / 1000);
+  $("timer").textContent = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+  if (s >= 300 && line) line.hangUp();  // demo calls are capped at 5 minutes
+}
+
+function setButton(live, disabled = false) {
+  $("call").classList.toggle("live", live); $("call").disabled = disabled;
+  $("calltext").textContent = live ? "Hang up" : (callId ? "Call again" : "Start the call");
+}
+
+async function start() {
+  setButton(false, true);
+  status("Dialling…");
+  const r = await fetch("/api/demo/calls", { method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ language: $("lang").value }) });
+  if (!r.ok) { status(esc((await r.json().catch(() => ({}))).detail || "Couldn't start the call.")); setButton(false); return; }
+  const info = await r.json();
+  callId = info.interview_id; lastTurns = -1;
+  $("rec").removeAttribute("src"); $("after").classList.remove("show");
+  document.querySelectorAll(".try li").forEach((li) => li.classList.remove("done"));
+  line = await PhoneLine.dial({
+    interviewId: info.interview_id, callSid: info.call_sid, onLevel: level,
+    onOpen: () => { setButton(true); status("Connected. The agent will speak first."); t0 = Date.now(); clock = setInterval(tick, 500); },
+    onClose: (why) => {
+      line = null; clearInterval(clock); setButton(false);
+      status(why === "error" ? "The connection dropped." : "Call ended. The second pass and the recording appear below in a few seconds.");
+      setTimeout(() => clearInterval(poll), 60000);  // keep polling a minute for the second pass
+    },
+  });
+  clearInterval(poll); poll = setInterval(refresh, 1000);
+}
+
+$("call").onclick = () => line ? line.hangUp() : start().catch((e) => {
+  status(e.name === "NotAllowedError" ? "Microphone access was blocked. Allow it and try again." : "Couldn't start: " + esc(e.message));
+  setButton(false);
+});
+
+fetch("/api/demo/status").then((r) => r.json()).then((s) => {
+  if (!s.ready) { status("The demo line isn't configured yet."); return; }
+  if (!window.isSecureContext) { status("Open this page over https (or localhost) to use the microphone."); return; }
+  setButton(false);
+  status(s.live_calls >= s.max_calls ? "All lines are busy right now; you can still try." : "Ready when you are.");
+  if (s.languages_mixed) {
+    $("mixnote").hidden = false;
+    $("mixnote").innerHTML = `Mixed-language answers are on: the line listens for <b>${esc(s.stt_languages.replaceAll("-IN", "").replaceAll(",", ", "))}</b> in one sentence.`;
+  }
+}).catch(() => status("Can't reach the OpenLine server."));
+</script>
+</body>
+</html>

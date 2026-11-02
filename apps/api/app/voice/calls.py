@@ -150,6 +150,12 @@ async def media_stream(websocket: WebSocket):
     transport_type, call_data = await parse_telephony_websocket(websocket)
     params = call_data.get("body", {}) or {}
     interview_id = int(params.get("interview_id", 0))
+    from app.config import settings as app_settings
+    from app.demo import is_demo_call
+
+    if app_settings.demo_only and not is_demo_call(interview_id):
+        await websocket.close(code=1008)
+        return
     logger.info(f"Media stream start: {transport_type} call={call_data.get('call_id')} interview={interview_id}")
     try:
         cfg = voice_settings()

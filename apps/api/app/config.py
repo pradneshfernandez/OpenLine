@@ -14,6 +14,9 @@ class Settings(BaseSettings):
     self_ws_url: str = "ws://127.0.0.1:8000/ws"
     # Campaign scheduler loop (off in tests, which call campaigns.tick() directly).
     scheduler: bool = True
+    # Public demo (/demo): with demo_only the server answers only the demo routes (safe to tunnel).
+    demo_only: bool = False
+    demo_max_calls: int = 3
 
 
 settings = Settings()

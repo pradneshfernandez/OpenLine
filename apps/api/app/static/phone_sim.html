@@ -57,72 +57,11 @@
   <p class="note">Use earphones so the agent doesn't hear itself. On a phone, open this page through <code>ngrok http 8000</code> (the mic needs HTTPS).</p>
 </main>
 
+<script src="/static/phone_line.js"></script>
 <script>
-const RATE = 8000, FRAME = 160;  // 20 ms of 8 kHz, as Twilio sends
 const $ = (id) => document.getElementById(id);
 const status = (t) => { $("status").innerHTML = t; };
-
-// ---- mu-law (G.711) ----
-function linToUlaw(s) {  // s: int16; same algorithm as CPython's audioop.lin2ulaw (14-bit G.711)
-  s >>= 2;
-  let mask = 0xff;
-  if (s < 0) { s = -s; mask = 0x7f; }
-  if (s > 8159) s = 8159;
-  s += 0x21;
-  let seg = 0;
-  for (let end = 0x3f; seg < 8 && s > end; seg++, end = (end << 1) | 1);
-  if (seg >= 8) return 0x7f ^ mask;
-  return ((seg << 4) | ((s >> (seg + 1)) & 0x0f)) ^ mask;
-}
-const ULAW_TABLE = new Int16Array(256).map((_, u) => {
-  u = ~u & 0xff;
-  const sign = u & 0x80, exp = (u >> 4) & 7, mant = u & 0x0f;
-  let s = (((mant << 3) + 0x84) << exp) - 0x84;
-  return sign ? -s : s;
-});
-const b64 = (bytes) => { let s = ""; for (const b of bytes) s += String.fromCharCode(b); return btoa(s); };
-const unb64 = (str) => Uint8Array.from(atob(str), (c) => c.charCodeAt(0));
-
-// ---- audio worklets: uplink (ctx rate -> 8 kHz frames), downlink (8 kHz -> ctx rate) ----
-const WORKLET = `
-class Uplink extends AudioWorkletProcessor {
-  constructor() { super(); this.step = sampleRate / ${RATE}; this.pos = 0; this.prev = 0; this.buf = new Float32Array(${FRAME}); this.n = 0; }
-  process(inputs) {
-    const x = inputs[0][0];
-    if (!x) return true;
-    // Input is already low-passed at 3.4 kHz, so linear interpolation is enough to decimate.
-    for (let i = 0; i < x.length; i++) {
-      while (this.pos <= i) {
-        const a = this.pos - (i - 1), s0 = i === 0 ? this.prev : x[i - 1];
-        this.buf[this.n++] = s0 + (x[i] - s0) * a;
-        if (this.n === ${FRAME}) { this.port.postMessage(this.buf.slice()); this.n = 0; }
-        this.pos += this.step;
-      }
-    }
-    this.pos -= x.length; this.prev = x[x.length - 1];
-    return true;
-  }
-}
-class Downlink extends AudioWorkletProcessor {
-  constructor() {
-    super(); this.step = ${RATE} / sampleRate; this.q = []; this.cur = null; this.ci = 0; this.frac = 0; this.last = 0;
-    this.port.onmessage = (e) => { if (e.data === "clear") { this.q = []; this.cur = null; } else this.q.push(e.data); };
-  }
-  next() { if (this.cur && this.ci < this.cur.length) return this.cur[this.ci++]; this.cur = this.q.shift() || null; this.ci = 0; return this.cur ? this.cur[this.ci++] : 0; }
-  process(_, outputs) {
-    const out = outputs[0][0];
-    for (let i = 0; i < out.length; i++) {
-      this.frac += this.step;
-      while (this.frac >= 1) { this.last = this.next(); this.frac -= 1; }
-      out[i] = this.last;
-    }
-    return true;
-  }
-}
-registerProcessor("uplink", Uplink);
-registerProcessor("downlink", Downlink);`;
-
-let call = null;  // {ws, ctx, stream, ...}
+let line = null, info = null;
 
 async function loadForms() {
   const forms = await (await fetch("/api/phone-sim/forms")).json();
@@ -132,95 +71,32 @@ async function loadForms() {
   $("call").disabled = !forms.length;
 }
 
-function level(el, v) { el.style.width = Math.min(100, v * 300) + "%"; }
+const level = (who, v) => { $(who === "you" ? "mUp" : "mDown").style.width = Math.min(100, v * 300) + "%"; };
 
 async function start() {
   $("call").disabled = true;
   status("Dialling…");
-  const dsp = $("dsp").checked;
-  const stream = await navigator.mediaDevices.getUserMedia({ audio: {
-    channelCount: 1, echoCancellation: dsp, noiseSuppression: dsp, autoGainControl: dsp } });
-  const ctx = new AudioContext();
-  await ctx.audioWorklet.addModule(URL.createObjectURL(new Blob([WORKLET], { type: "text/javascript" })));
-
   const res = await fetch("/api/phone-sim/calls", { method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ form_version_id: +$("form").value, language: $("lang").value }) });
   if (!res.ok) throw new Error(await res.text());
-  const info = await res.json();
-
-  // Telephone band: 300–3400 Hz, two poles each side.
-  const src = ctx.createMediaStreamSource(stream);
-  const hp1 = new BiquadFilterNode(ctx, { type: "highpass", frequency: 300 });
-  const hp2 = new BiquadFilterNode(ctx, { type: "highpass", frequency: 300 });
-  const lp1 = new BiquadFilterNode(ctx, { type: "lowpass", frequency: 3400 });
-  const lp2 = new BiquadFilterNode(ctx, { type: "lowpass", frequency: 3400 });
-  const up = new AudioWorkletNode(ctx, "uplink");
-  const down = new AudioWorkletNode(ctx, "downlink");
-  src.connect(hp1).connect(hp2).connect(lp1).connect(lp2).connect(up);
-  down.connect(new BiquadFilterNode(ctx, { type: "lowpass", frequency: 3400 })).connect(ctx.destination);
-
-  const proto = location.protocol === "https:" ? "wss" : "ws";
-  const ws = new WebSocket(`${proto}://${location.host}/ws`);
-  const sid = "MZsim" + info.interview_id;
-  let seq = 1, started = false;
-  call = { ws, ctx, stream, info };
-
-  ws.onopen = () => {
-    ws.send(JSON.stringify({ event: "connected", protocol: "Call", version: "1.0.0" }));
-    ws.send(JSON.stringify({ event: "start", sequenceNumber: String(seq++), streamSid: sid, start: {
-      streamSid: sid, accountSid: "ACsim", callSid: info.call_sid, tracks: ["inbound"],
-      mediaFormat: { encoding: "audio/x-mulaw", sampleRate: RATE, channels: 1 },
-      customParameters: { interview_id: String(info.interview_id) } } }));
-    started = true;
-    $("call").textContent = "Hang up"; $("call").classList.add("live"); $("call").disabled = false;
-    status(`Connected · interview ${info.interview_id}`);
-  };
-
-  up.port.onmessage = (e) => {
-    if (!started || ws.readyState !== 1) return;
-    const f = e.data, bytes = new Uint8Array(FRAME);
-    let peak = 0;
-    const lost = Math.random() * 100 < +$("loss").value;  // a lost packet arrives as silence
-    for (let i = 0; i < FRAME; i++) {
-      const v = lost ? 0 : Math.max(-1, Math.min(1, f[i]));
-      peak = Math.max(peak, Math.abs(v));
-      bytes[i] = linToUlaw(Math.round(v * 32767));
-    }
-    level($("mUp"), peak);
-    ws.send(JSON.stringify({ event: "media", streamSid: sid, sequenceNumber: String(seq++),
-      media: { track: "inbound", payload: b64(bytes) } }));
-  };
-
-  ws.onmessage = (e) => {
-    const m = JSON.parse(e.data);
-    if (m.event === "media") {
-      const u = unb64(m.media.payload), f = new Float32Array(u.length);
-      let peak = 0;
-      for (let i = 0; i < u.length; i++) { f[i] = ULAW_TABLE[u[i]] / 32768; peak = Math.max(peak, Math.abs(f[i])); }
-      level($("mDown"), peak);
-      down.port.postMessage(f, [f.buffer]);
-    } else if (m.event === "clear") {
-      down.port.postMessage("clear");  // barge-in: drop queued agent audio, like Twilio does
-    }
-  };
-  ws.onclose = () => end("Call ended");
-  ws.onerror = () => end("Connection error");
+  info = await res.json();
+  line = await PhoneLine.dial({
+    interviewId: info.interview_id, callSid: info.call_sid, dsp: $("dsp").checked,
+    lossPercent: () => +$("loss").value, onLevel: level,
+    onOpen: () => {
+      $("call").textContent = "Hang up"; $("call").classList.add("live"); $("call").disabled = false;
+      status(`Connected · interview ${info.interview_id}`);
+    },
+    onClose: (why) => {
+      line = null;
+      $("call").textContent = "Call"; $("call").classList.remove("live"); $("call").disabled = false;
+      const web = `${location.protocol}//${location.hostname}:5173/interviews/${info.interview_id}`;
+      status(`Call ${why} · <a href="${web}" target="_blank">open interview ${info.interview_id}</a>`);
+    },
+  });
 }
 
-function end(msg) {
-  if (!call) return;
-  const { ws, ctx, stream, info } = call;
-  call = null;
-  if (ws.readyState === 1) { try { ws.send(JSON.stringify({ event: "stop", streamSid: "MZsim" + info.interview_id })); } catch {} ws.close(); }
-  stream.getTracks().forEach((t) => t.stop());
-  ctx.close();
-  level($("mUp"), 0); level($("mDown"), 0);
-  $("call").textContent = "Call"; $("call").classList.remove("live"); $("call").disabled = false;
-  const web = `${location.protocol}//${location.hostname}:5173/interviews/${info.interview_id}`;
-  status(`${msg} · <a href="${web}" target="_blank">open interview ${info.interview_id}</a>`);
-}
-
-$("call").onclick = () => call ? end("Hung up") : start().catch((e) => { status("Couldn't start: " + e.message); $("call").disabled = false; });
+$("call").onclick = () => line ? line.hangUp() : start().catch((e) => { status("Couldn't start: " + e.message); $("call").disabled = false; });
 $("loss").oninput = () => { $("lossv").textContent = $("loss").value; };
 loadForms().catch(() => status("Couldn't load forms. Is the API running?"));
 </script>
