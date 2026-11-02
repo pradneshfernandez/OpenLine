@@ -125,3 +125,14 @@ def test_llm_confirmed_but_respondent_said_no_is_not_saved(trial_version):  # no
     assert res["status"] == "not_confirmed"                            # the LLM can't override a "no"
     res = bot.answer("5", heard="We are 5", confirmed=True)
     assert res["status"] == "ok"
+
+
+def test_correct_answer_sees_question_wording_and_type(trial_version):  # noqa: F811
+    bot = Bot(trial_version, "en")
+    bot.open()
+    for v in ("yes", "34", "5", "yes"):
+        bot.answer(v)
+    fn = next(f for f in bot.node["functions"] if f.name == "correct_answer")
+    assert 'num_children' not in fn.description  # not answered yet
+    assert 'children_school: "Do any children in your household go to school?" (select_one) = yes' in fn.description
+    assert 'hh_size: "How many people live in your household, including you?" (integer) = 5' in fn.description

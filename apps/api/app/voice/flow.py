@@ -117,6 +117,21 @@ class SurveyFlow:
             parts.append(", ".join(labels[:-1]) + f" {phrase(self.lang, 'or')} {labels[-1]}?")
         return " ".join(p.strip() for p in parts if p and p.strip())
 
+    def answered_catalog(self, current: str) -> str:
+        """Earlier questions for correct_answer: name, wording, type and the stored answer.
+
+        Variable names alone mislead (live, Nov 3: "only 2 of the children go to school, not 3"
+        went to children_school instead of num_children)."""
+        seen, out = set(), []
+        for it in self.runner._walk():
+            stored = self.runner.answers.get(it.key)
+            if stored is None or it.name in (current, ANOTHER) or it.name in seen:
+                continue
+            seen.add(it.name)
+            value = stored.code or (" ".join(stored.value) if isinstance(stored.value, list) else stored.value)
+            out.append(f'{it.name}: "{it.text}" ({it.type}) = {value}')
+        return "; ".join(out[-15:])
+
     def answers_so_far(self) -> str:
         """One line the LLM needs for corrections: earlier answers, by variable name."""
         done = []
@@ -300,7 +315,10 @@ class SurveyFlow:
         if answered:
             fns.insert(1, FlowsFunctionSchema(
                 name="correct_answer",
-                description="The respondent wants to change their answer to an earlier question.",
+                description=("The respondent wants to change their answer to an earlier question. Pick the "
+                             "question whose wording and answer type match what they are changing (a new "
+                             "number goes to a number question). Earlier questions: "
+                             + self.answered_catalog(item.name)),
                 properties={"question_name": {"type": "string", "enum": answered},
                             "value": {"type": "string", "description": "The new answer (option code or value)"},
                             "heard_text": {"type": "string"}},

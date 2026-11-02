@@ -53,7 +53,7 @@ reword or answer a question itself.
 | <img src="assets/readme/feature_turn_detection.gif" width="420"> | **Turn detection.** Smart Turn v3.2 decides whether you've finished from the audio itself, and the longest silence it waits depends on the question: 1.2 s for yes/no, up to 3.5 s for open answers. |
 | <img src="assets/readme/feature_interruptions.gif" width="420"> | **Interruptions.** Two or more words stop the agent; a one-word “haan” while it speaks doesn't. Consent and goodbye can't be talked over. |
 | <img src="assets/readme/feature_accuracy_checks.gif" width="420"> | **Accuracy checks.** Numbers are checked against the digits in the transcript and read back when they disagree; a read-back needs a real yes. Three invalid answers become “unclear” and go to review. After the call, every answer clip is transcribed again. |
-| <img src="assets/readme/code_switching.gif" width="420"> | **Code-switching.** With `STT_AUTO_LANGUAGE=true`, Prisma v3.0 listens for English, Hindi and Tamil in one sentence. Tested live over the phone path: mixed answers were coded correctly. |
+| <img src="assets/readme/code_switching.gif" width="420"> | **Code-switching.** With `STT_AUTO_LANGUAGE=true`, Prisma v3.0 listens for English, Hindi and Tamil in one sentence. Hindi–English mixing works reliably over the phone path; Tamil inside a mixed sentence was transcribed right in 1 of 3 live calls so far. |
 | <img src="assets/readme/price_comparison.gif" width="420"> | **Cost.** An estimate against published per-interview costs of human phone surveys; the sources and assumptions are on the slide. |
 
 Also in the box: XLSForm upload with a 14-rule phone check and an editor, versioning, campaigns with retries

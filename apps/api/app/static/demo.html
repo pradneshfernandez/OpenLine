@@ -91,6 +91,13 @@ audio{width:100%;margin-top:6px}
 .how .n{font:500 12px 'IBM Plex Mono',monospace;color:var(--brand)}
 footer{font-size:13px;color:var(--text3);padding:10px 0 30px}
 @media (max-width:600px){.tagline{display:none}.convo{height:340px}}
+/* ?watch=…: one-screen layout for following a call (recordings, projectors) */
+body.watch .hero{padding:4px 0 12px} body.watch .hero p, body.watch .how, body.watch footer, body.watch .meters, body.watch .note.hp{display:none}
+body.watch .hero h1{font-size:28px} body.watch .try li{padding:5px 0;font-size:13px} body.watch .try small{font-size:11.5px}
+body.watch .wrap{max-width:1560px} body.watch .grid{grid-template-columns:300px 1fr}
+body.watch .right{grid-template-columns:1fr 1fr;align-items:start} body.watch .convo{height:700px}
+body.watch .right > .panel:last-child{max-height:752px;overflow-y:auto} body.watch table{font-size:13.5px}
+body.watch td, body.watch th{padding:7px 12px}
 </style>
 </head>
 <body>
@@ -122,7 +129,7 @@ footer{font-size:13px;color:var(--text3);padding:10px 0 30px}
             <span>Agent</span><div class="meter"><i id="mAgent"></i></div>
           </div>
           <div class="note" id="mixnote" hidden></div>
-          <div class="note">Use headphones so the agent doesn't hear itself. The call is recorded for playback;
+          <div class="note hp">Use headphones so the agent doesn't hear itself. The call is recorded for playback;
             please don't share real personal details.</div>
         </div>
       </div>
@@ -209,7 +216,7 @@ function badges(a) {
 function render(d) {
   const state = { queued: ["connecting", "ne"], "in-progress": ["live", "ok"], completed: ["completed", "ok"],
                   partial: ["ended early", "wa"], refused: ["no consent", "wa"], failed: ["failed", "da"] }[d.status] || [d.status, "ne"];
-  $("callstate").className = `chip ${state[1]}`; $("callstate").textContent = state[0];
+  $("callstate").className = `chip ${state[1]}`; $("callstate").textContent = state[0]; $("callstate").dataset.s = d.status;
   if (d.turns.length !== lastTurns) {
     lastTurns = d.turns.length;
     $("convo").innerHTML = d.turns.filter((t) => t.speaker !== "system" && t.text).map((t) => {
@@ -240,6 +247,7 @@ function tick() {
   const s = Math.floor((Date.now() - t0) / 1000);
   $("timer").textContent = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
   if (s >= 300 && line) line.hangUp();  // demo calls are capped at 5 minutes
+  if (WATCH && s >= 600) clearInterval(clock);
 }
 
 function setButton(live, disabled = false) {
@@ -274,7 +282,24 @@ $("call").onclick = () => line ? line.hangUp() : start().catch((e) => {
   setButton(false);
 });
 
-fetch("/api/demo/status").then((r) => r.json()).then((s) => {
+// ?watch=<id>: follow a call placed elsewhere (a scripted mock call for a recording, or a projector).
+const WATCH = new URLSearchParams(location.search).get("watch");
+if (WATCH) {
+  callId = +WATCH;
+  document.body.classList.add("watch");
+  document.querySelector(".hero h1").textContent = "OpenLine · live mock phone call";
+  $("call").style.display = "none"; $("lang").closest("div").querySelector("label").textContent = "Mock call";
+  $("lang").replaceWith(Object.assign(document.createElement("div"), { className: "note",
+    innerHTML: "This is a <b>mock phone call</b>: the respondent is a scripted voice (Gnani Timbre), talking to the real OpenLine pipeline over an 8 kHz line." }));
+  status("Following the call live.");
+  t0 = Date.now(); clock = setInterval(tick, 500);
+  poll = setInterval(async () => {
+    await refresh();
+    if (["completed", "partial", "refused", "failed"].includes($("callstate").dataset.s)) clearInterval(clock);
+  }, 700);
+}
+
+if (!WATCH) fetch("/api/demo/status").then((r) => r.json()).then((s) => {
   if (!s.ready) { status("The demo line isn't configured yet."); return; }
   if (!window.isSecureContext) { status("Open this page over https (or localhost) to use the microphone."); return; }
   setButton(false);
