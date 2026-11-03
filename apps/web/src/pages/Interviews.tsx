@@ -8,8 +8,8 @@ import { Link, useParams } from 'react-router-dom'
 import { api, ApiError, csvUrl, versionPath, voiceApi } from '../api'
 import { ChannelBadge, InterviewStatusBadge, StatusBadge, ToneBadge } from '../components/badges'
 import { ErrorNotice, fmtDate, maskPhone, PageBody, PageHeader, SkeletonRows } from '../components/layout'
+import { LANG_OPTIONS, type LangCode, langName } from '../languages'
 
-const LANGS = [{ value: 'en', label: 'English' }, { value: 'hi', label: 'हिन्दी Hindi' }]
 const STATUSES = ['queued', 'ringing', 'in-progress', 'completed', 'partial', 'refused', 'callback', 'no-answer', 'busy', 'failed']
 const MISSING_HELP: Record<string, string> = {
   GNANI_API_KEY: 'Speech — GNANI_API_KEY',
@@ -33,7 +33,7 @@ export default function Interviews() {
 
   const [to, setTo] = useState('')
   const [focused, setFocused] = useState(false)
-  const [language, setLanguage] = useState<'en' | 'hi'>('en')
+  const [language, setLanguage] = useState<LangCode>('en')
   const [label, setLabel] = useState('')
   const [versionId, setVersionId] = useState<string | null>(null)
   const [statusFilter, setStatusFilter] = useState<string | null>(null)
@@ -87,8 +87,8 @@ export default function Interviews() {
               value={focused || !to ? to : maskPhone(to)} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}
               onChange={(e) => setTo(e.currentTarget.value)} error={to && !focused && !validNumber ? 'Use E.164, e.g. +91 98765 43210' : undefined}
               description={<Group gap={3} component="span"><IconLock size={11} />Not stored. E.164 format.</Group>} />
-            <Select label="Language" w={160} data={LANGS} value={language} disabled={notConfigured} allowDeselect={false}
-              onChange={(v) => setLanguage((v ?? 'en') as 'en' | 'hi')} />
+            <Select label="Language" w={160} data={LANG_OPTIONS} searchable value={language} disabled={notConfigured} allowDeselect={false}
+              onChange={(v) => setLanguage((v ?? 'en') as LangCode)} />
             <TextInput label="Participant label" placeholder="e.g. Test – own phone" style={{ flex: 1 }} value={label} disabled={notConfigured}
               description="Shown instead of the number" onChange={(e) => setLabel(e.currentTarget.value)} />
             <Box w={200}>
@@ -140,7 +140,7 @@ export default function Interviews() {
                     <Table.Td><Anchor component={Link} to={`/interviews/${i.id}`} className="vs-mono" size="sm" fw={600}>#{String(i.id).padStart(4, '0')}</Anchor></Table.Td>
                     <Table.Td><Text size="sm">{i.participant_label || '—'}</Text></Table.Td>
                     <Table.Td><ChannelBadge channel={i.channel} /></Table.Td>
-                    <Table.Td><Text size="sm">{i.language === 'hi' ? 'Hindi' : 'English'}</Text></Table.Td>
+                    <Table.Td><Text size="sm">{langName(i.language)}</Text></Table.Td>
                     <Table.Td><Text size="sm">v{i.version_no}</Text></Table.Td>
                     <Table.Td>
                       <InterviewStatusBadge status={i.status} />

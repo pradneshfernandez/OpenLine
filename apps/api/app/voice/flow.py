@@ -16,7 +16,7 @@ from loguru import logger
 from pipecat.flows import ContextStrategy, ContextStrategyConfig, FlowManager, FlowsFunctionSchema, NodeConfig
 
 from app.voice.config import voice_settings
-from app.voice.i18n import LANGUAGE_NAMES, lang_code, phrase
+from app.voice.i18n import ALL_NO_WORDS, ALL_YES_WORDS, LANGUAGE_NAMES, lang_code, phrase
 from app.voice.runner import ANOTHER, DK, REFUSED, UNCLEAR, Item
 from app.voice.session import InterviewSession
 
@@ -47,11 +47,7 @@ def number_mismatch(item: Item, value: Any, heard: str) -> Any | None:
     return int(v) if v.is_integer() else v
 
 
-# Words that accept or reject a read-back ("5?"), in English, Hindi (both scripts) and Tamil.
-YES_WORDS = {"yes", "yeah", "yep", "yup", "correct", "right", "haan", "han", "ha", "ji", "sahi", "theek",
-             "हाँ", "हां", "हा", "जी", "सही", "ठीक", "ஆமா", "ஆமாம்", "ஆம்", "சரி"}
-NO_WORDS = {"no", "nope", "not", "wrong", "nahi", "nahin", "na", "galat",
-            "नहीं", "नही", "ना", "गलत", "இல்லை", "இல்ல", "இல்லே", "தப்பு"}
+YES_WORDS, NO_WORDS = ALL_YES_WORDS, ALL_NO_WORDS
 
 
 def confirmation_holds(heard: str, value: Any, label: str | None = None) -> bool:
@@ -60,7 +56,7 @@ def confirmation_holds(heard: str, value: Any, label: str | None = None) -> bool
     An explicit "no" never confirms. Otherwise a "yes"-word, or the value itself said again,
     does. Anything else (an answer to a different question, noise) doesn't.
     """
-    words = set(re.findall(r"[\w\u0900-\u097F\u0B80-\u0BFF]+", (heard or "").lower()))
+    words = set(re.findall(r"[\w\u0900-\u0D7F]+", (heard or "").lower()))
     if words & NO_WORDS:
         return False
     if words & YES_WORDS:

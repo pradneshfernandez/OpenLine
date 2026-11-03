@@ -9,6 +9,7 @@ import { api, ApiError, campaignApi, type CsvCheck, voiceApi } from '../api'
 import { StatusBadge, ToneBadge } from '../components/badges'
 import { ErrorNotice, PageBody, PageHeader } from '../components/layout'
 import { useProjectId } from '../hooks'
+import { langName } from '../languages'
 
 function Step({ n, title, meta, children }: { n: number; title: string; meta?: React.ReactNode; children: React.ReactNode }) {
   return (
@@ -161,7 +162,7 @@ export default function CampaignNew() {
             <Stack gap={6}>
               <Row k="Will be called" v={res ? res.counts.ok.toLocaleString() : '—'} />
               <Row k="Left out" v={res ? String(res.problems.length) : '—'} />
-              <Row k="Languages" v={res ? `Hindi ${res.languages.hi} · English ${res.languages.en}` : '—'} />
+              <Row k="Languages" v={res ? Object.entries(res.languages).map(([c, n]) => `${langName(c)} ${n}`).join(' · ') || '—' : '—'} />
               <Row k="Form" v={chosen?.label ?? '—'} />
               <Row k="Hours" v={`${start}–${end}`} />
             </Stack>

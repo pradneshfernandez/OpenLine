@@ -21,6 +21,7 @@ import { Link, useParams } from 'react-router-dom'
 import { type AnswerRow, type InterviewDetail as Detail, recordingUrl, type TranscriptSegment, type TurnRow, voiceApi } from '../api'
 import { ChannelBadge, FlagBadge, type FlagKey, InterviewStatusBadge, LIVE_STATUSES, PersonaBadge, ReviewStateBadge } from '../components/badges'
 import { ErrorNotice, fmtDate, PageBody, PageHeader, SkeletonRows, Tile } from '../components/layout'
+import { labelIn, langAttr, langName } from '../languages'
 
 const LOW_CONFIDENCE = 0.7
 const fmt = (t: number | null | undefined) => (t == null ? '—' : `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(Math.floor(t % 60)).padStart(2, '0')}`)
@@ -40,10 +41,7 @@ function flagsOf(a: AnswerRow): FlagKey[] {
   return f
 }
 /** Question text in the interview language; form languages look like "Hindi (hi)" or "English". */
-function labelFor(labels: Record<string, string>, lang: string) {
-  const want = lang === 'hi' ? /hindi|\(hi\)|^hi$/i : /english|\(en\)|^en$|^default$/i
-  return Object.entries(labels).find(([k]) => want.test(k))?.[1] ?? Object.values(labels)[0]
-}
+const labelFor = labelIn
 // Same rule as the review queue (app/review.py: answer_flags).
 const needsReview = (a: AnswerRow) => a.still_relevant && flagsOf(a).some((f) => f === 'low_confidence' || f === 'mismatch' || f === 'unclear' || f === 'attempts' || f === 'corrected')
 
@@ -74,7 +72,7 @@ export default function InterviewDetail() {
   const turns = speaker === 'all' ? i.turns : i.turns.filter((t) => t.speaker === speaker)
   const callSecs = i.started_at && i.ended_at ? (new Date(i.ended_at).getTime() - new Date(i.started_at).getTime()) / 1000 : null
   const asking = live ? [...i.turns].reverse().find((t) => t.speaker === 'agent')?.node_name : undefined
-  const isHi = i.language === 'hi'
+  const isHi = langAttr(i.language)
 
   return (
     <>
@@ -98,7 +96,7 @@ export default function InterviewDetail() {
         </>} />
       <PageBody>
         <SimpleGrid cols={{ base: 3, lg: 6 }} spacing="sm">
-          <Tile label="Language" value={isHi ? 'Hindi' : 'English'} />
+          <Tile label="Language" value={langName(i.language)} />
           <Tile label="Channel"><Box mt={6}><ChannelBadge channel={i.channel} /></Box></Tile>
           <Tile label="Answers" value={relevant.length} note={i.answers.length > relevant.length ? `${i.answers.length - relevant.length} not used` : 'all used'} />
           <Tile label="Re-asks" value={reasks} note={reasks ? `across ${reaskedQs} question${reaskedQs > 1 ? 's' : ''}` : 'none'} />
@@ -211,7 +209,7 @@ function AnswerTableRow({ a, lang, seek, canPlay }: { a: AnswerRow; lang: string
     <Table.Tr className={notUsed ? 'vs-not-used' : undefined}>
       <Table.Td>
         <Text size="sm" className={`vs-mono${notUsed ? ' vs-strike' : ''}`}>{indexed(a)}</Text>
-        {label && <Text size="xs" c="gray.7" lineClamp={1} maw={260} lang={lang === 'hi' ? 'hi' : undefined}>{label.replace(/<[^>]+>/g, '')}</Text>}
+        {label && <Text size="xs" c="gray.7" lineClamp={1} maw={260} lang={langAttr(lang)}>{label.replace(/<[^>]+>/g, '')}</Text>}
       </Table.Td>
       <Table.Td>
         {a.code === 'dk' || a.code === 'refused' || a.code === 'unclear' ? <FlagBadge flag={a.code} /> : (
@@ -226,9 +224,9 @@ function AnswerTableRow({ a, lang, seek, canPlay }: { a: AnswerRow; lang: string
         )}
         {a.flagged && a.second_pass_value && <Text size="xs" fw={600} c="yellow.6">value {a.second_pass_value}</Text>}
       </Table.Td>
-      <Table.Td maw={260}><Text size="sm" c="gray.8" lang={lang === 'hi' ? 'hi' : undefined}>{a.heard_text ? `“${a.heard_text}”` : '—'}</Text></Table.Td>
+      <Table.Td maw={260}><Text size="sm" c="gray.8" lang={langAttr(lang)}>{a.heard_text ? `“${a.heard_text}”` : '—'}</Text></Table.Td>
       <Table.Td maw={260}>
-        <Text size="sm" c={a.flagged ? 'yellow.6' : 'gray.8'} lang={lang === 'hi' ? 'hi' : undefined}>{a.second_pass_text ? `“${a.second_pass_text}”` : '—'}</Text>
+        <Text size="sm" c={a.flagged ? 'yellow.6' : 'gray.8'} lang={langAttr(lang)}>{a.second_pass_text ? `“${a.second_pass_text}”` : '—'}</Text>
       </Table.Td>
       <Table.Td ta="right"><Text size="sm" className="vs-num" fw={low ? 600 : undefined} c={low ? 'yellow.6' : undefined}>{a.confidence != null ? a.confidence.toFixed(2) : '—'}</Text></Table.Td>
       <Table.Td ta="right" className="vs-num">{a.attempts}</Table.Td>
@@ -262,7 +260,7 @@ const SPEAKER = {
   system: [IconSettings, 'System', '#5c636d'],
 } as const
 
-function TurnTableRow({ t, hi, seek }: { t: TurnRow; hi: boolean; seek?: (t: number | null) => void }) {
+function TurnTableRow({ t, hi, seek }: { t: TurnRow; hi?: string; seek?: (t: number | null) => void }) {
   const [I, label, color] = SPEAKER[t.speaker] ?? SPEAKER.system
   const sys = t.speaker === 'system'
   return (
@@ -270,7 +268,7 @@ function TurnTableRow({ t, hi, seek }: { t: TurnRow; hi: boolean; seek?: (t: num
       <Table.Td>{seek ? <Anchor size="sm" className="vs-num" component="button" onClick={() => seek(t.t)}>{fmt(t.t)}</Anchor> : <Text size="sm" className="vs-num">{fmt(t.t)}</Text>}</Table.Td>
       <Table.Td><Group gap={6} wrap="nowrap"><I size={14} color={color} /><Text size="sm" c={color} fw={t.speaker === 'agent' ? 500 : undefined}>{label}</Text></Group></Table.Td>
       <Table.Td><Text size="xs" className="vs-mono" c="gray.8">{t.node_name || '—'}</Text></Table.Td>
-      <Table.Td><Text size="sm" c={sys ? 'gray.7' : undefined} fs={sys ? 'italic' : undefined} lang={hi && !sys ? 'hi' : undefined}>{t.text}</Text></Table.Td>
+      <Table.Td><Text size="sm" c={sys ? 'gray.7' : undefined} fs={sys ? 'italic' : undefined} lang={hi && !sys ? hi : undefined}>{t.text}</Text></Table.Td>
       <Table.Td ta="right" className="vs-num">{t.latency_ms != null ? `${(t.latency_ms / 1000).toFixed(2)} s` : ''}</Table.Td>
     </Table.Tr>
   )
@@ -279,7 +277,7 @@ function TurnTableRow({ t, hi, seek }: { t: TurnRow; hi: boolean; seek?: (t: num
 // ---------------------------------------------------------------------------
 // Full-call transcript (Gnani Prisma Batch on the recording, one file per channel)
 
-function FullTranscript({ i, hi, seek }: { i: Detail; hi: boolean; seek: (t: number | null) => void }) {
+function FullTranscript({ i, hi, seek }: { i: Detail; hi?: string; seek: (t: number | null) => void }) {
   const qc = useQueryClient()
   const run = useMutation({
     mutationFn: () => voiceApi.transcribe(i.id),
@@ -312,7 +310,7 @@ function FullTranscript({ i, hi, seek }: { i: Detail; hi: boolean; seek: (t: num
                 <Table.Tr key={k}>
                   <Table.Td><Anchor size="sm" className="vs-num" component="button" onClick={() => seek(s.start)}>{fmt(s.start)}</Anchor></Table.Td>
                   <Table.Td><Group gap={6} wrap="nowrap"><I size={14} color={color} /><Text size="sm" c={color}>{label}</Text></Group></Table.Td>
-                  <Table.Td><Text size="sm" lang={hi ? 'hi' : undefined}>{s.text}</Text></Table.Td>
+                  <Table.Td><Text size="sm" lang={hi}>{s.text}</Text></Table.Td>
                 </Table.Tr>
               )
             })}

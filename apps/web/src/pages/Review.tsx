@@ -19,6 +19,7 @@ import { ApiError, recordingUrl, reviewApi, type ReviewAnswer, type ReviewGroup,
 import { FlagBadge, type FlagKey, ReviewStateBadge } from '../components/badges'
 import { ErrorNotice, fmtDate, PageBody, PageHeader, SkeletonRows } from '../components/layout'
 import { useProjectId } from '../hooks'
+import { LANG_OPTIONS, labelIn, langAttr, langName } from '../languages'
 
 const TABS: ReviewState[] = ['pending', 'approved', 'rejected', 'edited']
 const FLAG_KEY: Record<ReviewAnswer['flags'][number], FlagKey> = {
@@ -88,7 +89,7 @@ export default function Review() {
           <Group gap="sm">
             <Select size="xs" w={190} placeholder="Flag: any" clearable data={FLAG_FILTER} value={filters.flag || null} onChange={(v) => set('flag', v)} aria-label="Flag" />
             <Select size="xs" w={170} placeholder="Question: any" clearable searchable data={data?.questions ?? []} value={filters.question || null} onChange={(v) => set('question', v)} aria-label="Question" />
-            <Select size="xs" w={140} placeholder="Language: any" clearable data={[{ value: 'en', label: 'English' }, { value: 'hi', label: 'Hindi' }]}
+            <Select size="xs" w={140} placeholder="Language: any" clearable data={LANG_OPTIONS}
               value={filters.language || null} onChange={(v) => set('language', v)} aria-label="Language" />
             <TextInput size="xs" w={130} placeholder="Interview #" value={filters.interview_id} aria-label="Interview number"
               onChange={(e) => set('interview', e.currentTarget.value.replace(/\D/g, '') || null)} />
@@ -143,13 +144,13 @@ function InterviewGroup({ g, state, clip, onApprove, onReject, onEdit, onReset, 
   onReset: (a: ReviewAnswer) => void; onApproveInterview: () => void
 }) {
   const i = g.interview
-  const hi = i.language === 'hi'
+  const la = langAttr(i.language)
   return (
     <Paper bg="white" style={{ overflow: 'hidden' }}>
       <Group justify="space-between" px="md" py={8} bg="#f8f9fa" style={{ borderBottom: '1px solid var(--vs-line)' }}>
         <Group gap="sm">
           <Anchor component={Link} to={`/interviews/${i.id}`} fw={600} className="vs-mono" underline="always">{pid(i.id)}</Anchor>
-          <Text size="sm">{i.participant_label || '—'} · {hi ? 'Hindi' : 'English'} · v{i.version_no} · {fmtDate(i.started_at)}</Text>
+          <Text size="sm">{i.participant_label || '—'} · {langName(i.language)} · v{i.version_no} · {fmtDate(i.started_at)}</Text>
           <Text size="xs" c="gray.7">{i.pending} still pending</Text>
           {i.review_state !== 'pending' && <ReviewStateBadge state={i.review_state} />}
         </Group>
@@ -160,12 +161,12 @@ function InterviewGroup({ g, state, clip, onApprove, onReject, onEdit, onReset, 
         )}
       </Group>
       {g.answers.map((a) => {
-        const label = Object.entries(a.labels).find(([k]) => (hi ? /hindi|\(hi\)/i : /english|\(en\)|default/i).test(k))?.[1] ?? Object.values(a.labels)[0]
+        const label = labelIn(a.labels, i.language)
         return (
           <Group key={a.id} align="flex-start" gap="md" px="md" py="sm" wrap="nowrap" style={{ borderBottom: '1px solid #eef0f2' }}>
             <Box w={220} style={{ flexShrink: 0 }}>
               <Text size="sm" className="vs-mono" fw={600}>{a.key}</Text>
-              {label && <Text size="xs" c="gray.7" lineClamp={2} lang={hi ? 'hi' : undefined}>{label.replace(/<[^>]+>/g, '')}</Text>}
+              {label && <Text size="xs" c="gray.7" lineClamp={2} lang={la}>{label.replace(/<[^>]+>/g, '')}</Text>}
             </Box>
             <Box w={170} style={{ flexShrink: 0 }}>
               {a.review_state === 'edited' ? (
@@ -181,12 +182,12 @@ function InterviewGroup({ g, state, clip, onApprove, onReject, onEdit, onReset, 
             <Stack gap={4} style={{ flex: 1, minWidth: 0 }}>
               <Group gap={6} wrap="nowrap" align="flex-start">
                 <Text size="xs" c="gray.7" w={56} style={{ flexShrink: 0 }}>Heard</Text>
-                <Text size="sm" lang={hi ? 'hi' : undefined}>“{a.heard_text || '—'}”</Text>
+                <Text size="sm" lang={la}>“{a.heard_text || '—'}”</Text>
               </Group>
               {a.second_pass_text != null && (
                 <Group gap={6} wrap="nowrap" align="flex-start">
                   <Text size="xs" c="gray.7" w={56} style={{ flexShrink: 0 }}>2nd pass</Text>
-                  <Text size="sm" c={a.flagged ? 'yellow.7' : undefined} lang={hi ? 'hi' : undefined}>“{a.second_pass_text}”</Text>
+                  <Text size="sm" c={a.flagged ? 'yellow.7' : undefined} lang={la}>“{a.second_pass_text}”</Text>
                 </Group>
               )}
               <Group gap={4}>{a.flags.map((f) => <FlagBadge key={f} flag={FLAG_KEY[f]} />)}</Group>

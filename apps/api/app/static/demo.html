@@ -7,7 +7,7 @@
 <meta name="description" content="Talk to OpenLine, an AI phone survey interviewer, in a two-minute mock survey.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500&family=IBM+Plex+Sans+Devanagari:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=Noto+Sans+Tamil:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500&family=IBM+Plex+Sans+Devanagari:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=Noto+Sans+Tamil:wght@400;500;600&family=Noto+Sans+Bengali:wght@400;600&family=Noto+Sans+Gujarati:wght@400;600&family=Noto+Sans+Kannada:wght@400;600&family=Noto+Sans+Malayalam:wght@400;600&family=Noto+Sans+Gurmukhi:wght@400;600&family=Noto+Sans+Telugu:wght@400;600&display=swap" rel="stylesheet">
 <style>
 :root{
   --ink:#121417; --text2:#424851; --text3:#5c636d; --border:#c3c8ce; --line:#dcdfe3;
@@ -26,7 +26,7 @@
   --da-fg:#ff9a8f; --da-bg:#3a1714; --da-bd:#6b2a24; --in-fg:#7fd3da; --in-bg:#0f2e31; --in-bd:#215257;
 }}
 *{box-sizing:border-box;margin:0;padding:0}
-body{background:var(--canvas);color:var(--ink);font:16px/1.5 'IBM Plex Sans','IBM Plex Sans Devanagari','Noto Sans Tamil',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+body{background:var(--canvas);color:var(--ink);font:16px/1.5 'IBM Plex Sans','IBM Plex Sans Devanagari','Noto Sans Tamil','Noto Sans Bengali','Noto Sans Gujarati','Noto Sans Kannada','Noto Sans Malayalam','Noto Sans Gurmukhi','Noto Sans Telugu',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
 a{color:var(--brand)}
 .wrap{max-width:1180px;margin:0 auto;padding:0 20px}
 header{display:flex;align-items:center;justify-content:space-between;padding:18px 0}
@@ -120,7 +120,7 @@ body.present .meters{display:grid}
         <div class="ph">Your call <span class="timer" id="timer"></span></div>
         <div class="pb">
           <label class="k" for="lang">The agent speaks</label>
-          <select id="lang"><option value="en">English</option><option value="hi">हिन्दी (Hindi)</option></select>
+          <select id="lang"><option value="en">English</option><option value="hi">हिन्दी (Hindi)</option><option value="bn">বাংলা (Bengali)</option><option value="gu">ગુજરાતી (Gujarati)</option><option value="kn">ಕನ್ನಡ (Kannada)</option><option value="ml">മലയാളം (Malayalam)</option><option value="mr">मराठी (Marathi)</option><option value="pa">ਪੰਜਾਬੀ (Punjabi)</option><option value="ta">தமிழ் (Tamil)</option><option value="te">తెలుగు (Telugu)</option></select>
           <button class="callbtn" id="call" disabled>
             <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25 11.4 11.4 0 0 0 3.6.57 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.57a1 1 0 0 1-.25 1z"/></svg>
             <span id="calltext">Start the call</span></button>
@@ -313,7 +313,7 @@ if (!WATCH) fetch("/api/demo/status").then((r) => r.json()).then((s) => {
   status(s.live_calls >= s.max_calls ? "All lines are busy right now; you can still try." : "Ready when you are.");
   if (s.languages_mixed) {
     $("mixnote").hidden = false;
-    $("mixnote").innerHTML = `Mixed-language answers are on: the line listens for <b>${esc(s.stt_languages.replaceAll("-IN", "").replaceAll(",", ", "))}</b> in one sentence.`;
+    $("mixnote").innerHTML = "Mixed-language answers are on: you can mix <b>English</b> into your answers in any language, or Hindi into English.";
   }
 }).catch(() => status("Can't reach the OpenLine server."));
 </script>

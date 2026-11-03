@@ -9,6 +9,7 @@ import { ApiError, type KoboAsset, koboApi } from '../api'
 import { KoboStateBadge, ReviewStateBadge, ToneBadge } from '../components/badges'
 import { ErrorNotice, fmtDate, PageBody, PageHeader, SkeletonRows } from '../components/layout'
 import { useProjectId } from '../hooks'
+import { langName } from '../languages'
 
 export default function KoboExport() {
   const projectId = useProjectId()
@@ -101,7 +102,7 @@ export default function KoboExport() {
                 <Table.Tr key={r.id}>
                   <Table.Td><Anchor component={Link} to={`/interviews/${r.id}`} className="vs-mono" size="sm" fw={600}>#{String(r.id).padStart(4, '0')}</Anchor>
                     <Text size="xs" c="gray.7">{fmtDate(r.started_at)}</Text></Table.Td>
-                  <Table.Td><Text size="sm">{r.participant_label || '—'}</Text><Text size="xs" c="gray.7">{r.language === 'hi' ? 'Hindi' : 'English'}</Text></Table.Td>
+                  <Table.Td><Text size="sm">{r.participant_label || '—'}</Text><Text size="xs" c="gray.7">{langName(r.language)}</Text></Table.Td>
                   <Table.Td><Text size="sm">{r.form_title} · v{r.version_no}</Text></Table.Td>
                   <Table.Td><ReviewStateBadge state={r.review_state} /></Table.Td>
                   <Table.Td ta="right" className="vs-num">{r.answers}</Table.Td>

@@ -1,3 +1,5 @@
+import type { LangCode } from './languages'
+
 export type Lang = string
 
 export interface Message {
@@ -390,7 +392,7 @@ export const voiceApi = {
   interview: (id: number) => request<InterviewDetail>(`/interviews/${id}`),
   transcribe: (id: number) =>
     request<{ status: string; segments?: number; error?: string }>(`/interviews/${id}/transcript`, { method: 'POST' }),
-  call: (body: { to: string; form_version_id: number; language: 'en' | 'hi'; participant_label: string }) =>
+  call: (body: { to: string; form_version_id: number; language: LangCode; participant_label: string }) =>
     request<{ interview_id: number; call_sid: string; status: string }>('/calls', {
       method: 'POST',
       body: JSON.stringify(body),
@@ -491,7 +493,7 @@ export interface CsvProblem { row: number; respondent_id: string; phone: string;
 export interface CsvCheck {
   filename: string
   counts: { ok: number; invalid_number: number; duplicate: number; unknown_language: number }
-  languages: { en: number; hi: number }
+  languages: Partial<Record<LangCode, number>>
   preview: CsvProblem[]
   problems: CsvProblem[]
 }
@@ -537,7 +539,7 @@ export interface SimulationRow {
 export interface SimulationReport {
   runs: number; finished: number; completed: number; completion_rate: number | null; accuracy: Ratio
   reasks: number; reasks_per_call: number | null; seconds_per_question: number | null
-  grid: ({ question: string; all: Ratio } & Partial<Record<'en' | 'hi', Ratio>>)[]
+  grid: ({ question: string; all: Ratio } & Partial<Record<LangCode, Ratio>>)[]
   by_noise: { noise: Noise; correct: number; total: number }[]
   by_persona: { persona: Persona; correct: number; total: number }[]
   reply_delay: { avg: number; p90: number; turns: number } | null
@@ -586,9 +588,9 @@ export type VoiceChoice = { voice: string; speed: number }
 
 export const voiceSettingsApi = {
   voices: () => request<{ model: string; voices: string[] }>('/voices'),
-  get: (projectId: number) => request<Record<'en' | 'hi', VoiceChoice>>(`/projects/${projectId}/voices`),
-  save: (projectId: number, body: Partial<Record<'en' | 'hi', VoiceChoice>>) =>
-    request<Record<'en' | 'hi', VoiceChoice>>(`/projects/${projectId}/voices`, { method: 'PUT', body: JSON.stringify(body) }),
+  get: (projectId: number) => request<Record<LangCode, VoiceChoice>>(`/projects/${projectId}/voices`),
+  save: (projectId: number, body: Partial<Record<LangCode, VoiceChoice>>) =>
+    request<Record<LangCode, VoiceChoice>>(`/projects/${projectId}/voices`, { method: 'PUT', body: JSON.stringify(body) }),
 }
 
 /** WAV of `text` in the agent's voice (Gnani Timbre). */

@@ -173,54 +173,130 @@ def clean_phone_ready() -> None:
           {"survey": survey, "choices": choices, "settings": settings})
 
 
-def demo_form() -> None:
-    """The public demo survey (/demo): short, and built so each OpenLine feature has a place to show."""
-    hdr = ["type", "name", f"label::{EN}", f"label::{HI}", "required", "relevant", "constraint",
-           f"constraint_message::{EN}", f"constraint_message::{HI}"]
+# The demo survey in every call language. Keys: consent, group, age, age_msg, hh, hh_msg, school,
+# nchild, nchild_msg, water, problem, then choice labels. English and Hindi were written for the
+# product; the other eight are first drafts for a native speaker to check.
+DEMO_TEXT = {
+    "en": ["This is a demo of OpenLine, an AI that runs phone surveys. It takes about two minutes. "
+           "The call is recorded for playback, so please don't share real personal details. Shall we begin?",
+           "Survey", "How old are you?", "Please tell me an age between 18 and 100.",
+           "How many people live in your household, including you?", "Please tell me a number between 1 and 30.",
+           "Do any children in your household go to school?", "How many of them go to school?",
+           "That should be at least 1 and fewer than the people in your household.",
+           "Where does your household mostly get its drinking water from?", "What is the biggest problem in your area?",
+           "Yes", "No", "Don't know", "Refused", "A tap at home", "A hand pump or borewell", "A water tanker", "Somewhere else"],
+    "hi": ["यह OpenLine का डेमो है, एक AI जो फ़ोन पर सर्वे करता है। इसमें लगभग दो मिनट लगेंगे। कॉल रिकॉर्ड "
+           "की जा रही है, इसलिए कृपया अपनी असली निजी जानकारी न दें। क्या हम शुरू करें?",
+           "सर्वे", "आपकी उम्र कितनी है?", "कृपया 18 से 100 के बीच की उम्र बताइए।",
+           "आपके घर में आपको मिलाकर कितने लोग रहते हैं?", "कृपया 1 से 30 के बीच की संख्या बताइए।",
+           "क्या आपके घर का कोई बच्चा स्कूल जाता है?", "उनमें से कितने बच्चे स्कूल जाते हैं?",
+           "यह संख्या कम से कम 1 और घर के लोगों से कम होनी चाहिए।",
+           "आपके घर में पीने का पानी ज़्यादातर कहाँ से आता है?", "आपके इलाके की सबसे बड़ी समस्या क्या है?",
+           "हाँ", "नहीं", "पता नहीं", "जवाब नहीं देना चाहते", "घर में नल", "हैंडपंप या बोरवेल", "पानी का टैंकर", "कहीं और से"],
+    "bn": ["এটি OpenLine-এর একটি ডেমো, একটি AI যা ফোনে সমীক্ষা করে। প্রায় দুই মিনিট লাগবে। কলটি রেকর্ড করা "
+           "হচ্ছে, তাই আসল ব্যক্তিগত তথ্য দেবেন না। আমরা কি শুরু করব?",
+           "সমীক্ষা", "আপনার বয়স কত?", "অনুগ্রহ করে 18 থেকে 100-এর মধ্যে বয়স বলুন।",
+           "আপনাকে নিয়ে আপনার বাড়িতে কতজন থাকেন?", "অনুগ্রহ করে 1 থেকে 30-এর মধ্যে একটি সংখ্যা বলুন।",
+           "আপনার বাড়ির কোনো শিশু কি স্কুলে যায়?", "তাদের মধ্যে কতজন স্কুলে যায়?",
+           "সংখ্যাটি অন্তত 1 এবং বাড়ির লোকসংখ্যার চেয়ে কম হতে হবে।",
+           "আপনার বাড়িতে খাবার জল বেশিরভাগ কোথা থেকে আসে?", "আপনার এলাকার সবচেয়ে বড় সমস্যা কী?",
+           "হ্যাঁ", "না", "জানি না", "উত্তর দিতে চাই না", "বাড়িতে জলের কল", "টিউবওয়েল বা বোরওয়েল", "জলের ট্যাঙ্কার", "অন্য কোথাও থেকে"],
+    "gu": ["આ OpenLine નો ડેમો છે, એક AI જે ફોન પર સર્વે કરે છે. તેમાં લગભગ બે મિનિટ લાગશે. કૉલ રેકોર્ડ થઈ "
+           "રહ્યો છે, તેથી કૃપા કરીને સાચી અંગત માહિતી ન આપશો. શું આપણે શરૂ કરીએ?",
+           "સર્વે", "તમારી ઉંમર કેટલી છે?", "કૃપા કરીને 18 થી 100 વચ્ચેની ઉંમર કહો.",
+           "તમારા સહિત તમારા ઘરમાં કેટલા લોકો રહે છે?", "કૃપા કરીને 1 થી 30 વચ્ચેની સંખ્યા કહો.",
+           "શું તમારા ઘરનું કોઈ બાળક શાળાએ જાય છે?", "તેમાંથી કેટલા બાળકો શાળાએ જાય છે?",
+           "આ સંખ્યા ઓછામાં ઓછી 1 અને ઘરના લોકો કરતાં ઓછી હોવી જોઈએ.",
+           "તમારા ઘરમાં પીવાનું પાણી મોટે ભાગે ક્યાંથી આવે છે?", "તમારા વિસ્તારની સૌથી મોટી સમસ્યા શું છે?",
+           "હા", "ના", "ખબર નથી", "જવાબ આપવા નથી માંગતા", "ઘરમાં નળ", "હેન્ડપંપ કે બોરવેલ", "પાણીનું ટેન્કર", "બીજે ક્યાંકથી"],
+    "kn": ["ಇದು OpenLine ನ ಡೆಮೊ, ಫೋನ್ ಮೂಲಕ ಸಮೀಕ್ಷೆ ನಡೆಸುವ ಒಂದು AI. ಸುಮಾರು ಎರಡು ನಿಮಿಷ ಬೇಕಾಗುತ್ತದೆ. ಕರೆಯನ್ನು "
+           "ರೆಕಾರ್ಡ್ ಮಾಡಲಾಗುತ್ತಿದೆ, ದಯವಿಟ್ಟು ನಿಜವಾದ ವೈಯಕ್ತಿಕ ಮಾಹಿತಿ ನೀಡಬೇಡಿ. ನಾವು ಶುರು ಮಾಡೋಣವೇ?",
+           "ಸಮೀಕ್ಷೆ", "ನಿಮ್ಮ ವಯಸ್ಸು ಎಷ್ಟು?", "ದಯವಿಟ್ಟು 18 ರಿಂದ 100 ರ ನಡುವಿನ ವಯಸ್ಸು ಹೇಳಿ.",
+           "ನಿಮ್ಮನ್ನೂ ಸೇರಿ ನಿಮ್ಮ ಮನೆಯಲ್ಲಿ ಎಷ್ಟು ಜನ ವಾಸಿಸುತ್ತಾರೆ?", "ದಯವಿಟ್ಟು 1 ರಿಂದ 30 ರ ನಡುವಿನ ಸಂಖ್ಯೆ ಹೇಳಿ.",
+           "ನಿಮ್ಮ ಮನೆಯ ಯಾವುದಾದರೂ ಮಕ್ಕಳು ಶಾಲೆಗೆ ಹೋಗುತ್ತಾರೆಯೇ?", "ಅವರಲ್ಲಿ ಎಷ್ಟು ಮಕ್ಕಳು ಶಾಲೆಗೆ ಹೋಗುತ್ತಾರೆ?",
+           "ಈ ಸಂಖ್ಯೆ ಕನಿಷ್ಠ 1 ಮತ್ತು ಮನೆಯ ಜನರಿಗಿಂತ ಕಡಿಮೆ ಇರಬೇಕು.",
+           "ನಿಮ್ಮ ಮನೆಗೆ ಕುಡಿಯುವ ನೀರು ಹೆಚ್ಚಾಗಿ ಎಲ್ಲಿಂದ ಬರುತ್ತದೆ?", "ನಿಮ್ಮ ಪ್ರದೇಶದ ಅತಿ ದೊಡ್ಡ ಸಮಸ್ಯೆ ಏನು?",
+           "ಹೌದು", "ಇಲ್ಲ", "ಗೊತ್ತಿಲ್ಲ", "ಉತ್ತರಿಸಲು ಇಷ್ಟವಿಲ್ಲ", "ಮನೆಯಲ್ಲಿ ನಲ್ಲಿ", "ಕೈಪಂಪು ಅಥವಾ ಬೋರ್‌ವೆಲ್", "ನೀರಿನ ಟ್ಯಾಂಕರ್", "ಬೇರೆ ಕಡೆಯಿಂದ"],
+    "ml": ["ഇത് OpenLine-ന്റെ ഒരു ഡെമോ ആണ്, ഫോണിലൂടെ സർവേ നടത്തുന്ന ഒരു AI. ഏകദേശം രണ്ട് മിനിറ്റ് എടുക്കും. കോൾ "
+           "റെക്കോർഡ് ചെയ്യുന്നുണ്ട്, അതിനാൽ യഥാർത്ഥ സ്വകാര്യ വിവരങ്ങൾ പറയരുത്. നമുക്ക് തുടങ്ങാമോ?",
+           "സർവേ", "നിങ്ങളുടെ പ്രായം എത്രയാണ്?", "ദയവായി 18 നും 100 നും ഇടയിലുള്ള പ്രായം പറയൂ.",
+           "നിങ്ങൾ ഉൾപ്പെടെ നിങ്ങളുടെ വീട്ടിൽ എത്ര പേർ താമസിക്കുന്നു?", "ദയവായി 1 നും 30 നും ഇടയിലുള്ള ഒരു സംഖ്യ പറയൂ.",
+           "നിങ്ങളുടെ വീട്ടിലെ ഏതെങ്കിലും കുട്ടികൾ സ്കൂളിൽ പോകുന്നുണ്ടോ?", "അവരിൽ എത്ര കുട്ടികൾ സ്കൂളിൽ പോകുന്നു?",
+           "ഈ സംഖ്യ കുറഞ്ഞത് 1 ഉം വീട്ടിലെ ആളുകളേക്കാൾ കുറവും ആയിരിക്കണം.",
+           "നിങ്ങളുടെ വീട്ടിൽ കുടിവെള്ളം കൂടുതലും എവിടെ നിന്നാണ് ലഭിക്കുന്നത്?", "നിങ്ങളുടെ പ്രദേശത്തെ ഏറ്റവും വലിയ പ്രശ്നം എന്താണ്?",
+           "അതെ", "ഇല്ല", "അറിയില്ല", "മറുപടി പറയാൻ താൽപ്പര്യമില്ല", "വീട്ടിൽ ടാപ്പ്", "കൈപ്പമ്പ് അല്ലെങ്കിൽ കുഴൽക്കിണർ", "വാട്ടർ ടാങ്കർ", "മറ്റെവിടെ നിന്നെങ്കിലും"],
+    "mr": ["हा OpenLine चा डेमो आहे, फोनवर सर्वेक्षण करणारे एक AI. याला सुमारे दोन मिनिटे लागतील. कॉल रेकॉर्ड "
+           "होत आहे, म्हणून कृपया खरी वैयक्तिक माहिती देऊ नका. आपण सुरू करूया का?",
+           "सर्वेक्षण", "तुमचे वय किती आहे?", "कृपया 18 ते 100 मधील वय सांगा.",
+           "तुमच्यासह तुमच्या घरात किती लोक राहतात?", "कृपया 1 ते 30 मधील संख्या सांगा.",
+           "तुमच्या घरातील कोणी मूल शाळेत जाते का?", "त्यांपैकी किती मुले शाळेत जातात?",
+           "ही संख्या किमान 1 आणि घरातील लोकांपेक्षा कमी असावी.",
+           "तुमच्या घरी पिण्याचे पाणी मुख्यतः कुठून येते?", "तुमच्या भागातील सर्वात मोठी समस्या कोणती आहे?",
+           "हो", "नाही", "माहीत नाही", "उत्तर द्यायचे नाही", "घरात नळ", "हातपंप किंवा बोअरवेल", "पाण्याचा टँकर", "इतर कुठूनतरी"],
+    "pa": ["ਇਹ OpenLine ਦਾ ਡੈਮੋ ਹੈ, ਇੱਕ AI ਜੋ ਫ਼ੋਨ ਉੱਤੇ ਸਰਵੇ ਕਰਦਾ ਹੈ। ਇਸ ਵਿੱਚ ਲਗਭਗ ਦੋ ਮਿੰਟ ਲੱਗਣਗੇ। ਕਾਲ ਰਿਕਾਰਡ "
+           "ਹੋ ਰਹੀ ਹੈ, ਇਸ ਲਈ ਕਿਰਪਾ ਕਰਕੇ ਅਸਲੀ ਨਿੱਜੀ ਜਾਣਕਾਰੀ ਨਾ ਦਿਓ। ਕੀ ਅਸੀਂ ਸ਼ੁਰੂ ਕਰੀਏ?",
+           "ਸਰਵੇ", "ਤੁਹਾਡੀ ਉਮਰ ਕਿੰਨੀ ਹੈ?", "ਕਿਰਪਾ ਕਰਕੇ 18 ਤੋਂ 100 ਦੇ ਵਿਚਕਾਰ ਉਮਰ ਦੱਸੋ।",
+           "ਤੁਹਾਡੇ ਸਮੇਤ ਤੁਹਾਡੇ ਘਰ ਵਿੱਚ ਕਿੰਨੇ ਲੋਕ ਰਹਿੰਦੇ ਹਨ?", "ਕਿਰਪਾ ਕਰਕੇ 1 ਤੋਂ 30 ਦੇ ਵਿਚਕਾਰ ਗਿਣਤੀ ਦੱਸੋ।",
+           "ਕੀ ਤੁਹਾਡੇ ਘਰ ਦਾ ਕੋਈ ਬੱਚਾ ਸਕੂਲ ਜਾਂਦਾ ਹੈ?", "ਉਨ੍ਹਾਂ ਵਿੱਚੋਂ ਕਿੰਨੇ ਬੱਚੇ ਸਕੂਲ ਜਾਂਦੇ ਹਨ?",
+           "ਇਹ ਗਿਣਤੀ ਘੱਟੋ-ਘੱਟ 1 ਅਤੇ ਘਰ ਦੇ ਲੋਕਾਂ ਤੋਂ ਘੱਟ ਹੋਣੀ ਚਾਹੀਦੀ ਹੈ।",
+           "ਤੁਹਾਡੇ ਘਰ ਪੀਣ ਵਾਲਾ ਪਾਣੀ ਜ਼ਿਆਦਾਤਰ ਕਿੱਥੋਂ ਆਉਂਦਾ ਹੈ?", "ਤੁਹਾਡੇ ਇਲਾਕੇ ਦੀ ਸਭ ਤੋਂ ਵੱਡੀ ਸਮੱਸਿਆ ਕੀ ਹੈ?",
+           "ਹਾਂ", "ਨਹੀਂ", "ਪਤਾ ਨਹੀਂ", "ਜਵਾਬ ਨਹੀਂ ਦੇਣਾ ਚਾਹੁੰਦੇ", "ਘਰ ਵਿੱਚ ਟੂਟੀ", "ਨਲਕਾ ਜਾਂ ਬੋਰਵੈੱਲ", "ਪਾਣੀ ਦਾ ਟੈਂਕਰ", "ਕਿਤੇ ਹੋਰ ਤੋਂ"],
+    "ta": ["இது OpenLine-இன் டெமோ, தொலைபேசியில் கணக்கெடுப்பு நடத்தும் ஒரு AI. சுமார் இரண்டு நிமிடங்கள் ஆகும். "
+           "அழைப்பு பதிவு செய்யப்படுகிறது, அதனால் உண்மையான தனிப்பட்ட விவரங்களைச் சொல்ல வேண்டாம். தொடங்கலாமா?",
+           "கணக்கெடுப்பு", "உங்கள் வயது என்ன?", "தயவுசெய்து 18 முதல் 100 வரை உள்ள வயதைச் சொல்லுங்கள்.",
+           "உங்களையும் சேர்த்து உங்கள் வீட்டில் எத்தனை பேர் வசிக்கிறார்கள்?", "தயவுசெய்து 1 முதல் 30 வரை உள்ள ஒரு எண்ணைச் சொல்லுங்கள்.",
+           "உங்கள் வீட்டில் யாராவது குழந்தைகள் பள்ளிக்குச் செல்கிறார்களா?", "அவர்களில் எத்தனை குழந்தைகள் பள்ளிக்குச் செல்கிறார்கள்?",
+           "இந்த எண் குறைந்தது 1 ஆகவும், வீட்டில் உள்ளவர்களை விடக் குறைவாகவும் இருக்க வேண்டும்.",
+           "உங்கள் வீட்டிற்கு குடிநீர் பெரும்பாலும் எங்கிருந்து கிடைக்கிறது?", "உங்கள் பகுதியின் மிகப்பெரிய பிரச்சனை என்ன?",
+           "ஆம்", "இல்லை", "தெரியாது", "பதில் சொல்ல விரும்பவில்லை", "வீட்டில் குழாய்", "கைப்பம்பு அல்லது ஆழ்துளைக் கிணறு", "தண்ணீர் லாரி", "வேறு இடத்திலிருந்து"],
+    "te": ["ఇది OpenLine డెమో, ఫోన్‌లో సర్వేలు చేసే ఒక AI. దీనికి సుమారు రెండు నిమిషాలు పడుతుంది. కాల్ రికార్డ్ "
+           "అవుతోంది, కాబట్టి దయచేసి నిజమైన వ్యక్తిగత వివరాలు చెప్పకండి. మనం మొదలుపెడదామా?",
+           "సర్వే", "మీ వయస్సు ఎంత?", "దయచేసి 18 నుండి 100 మధ్య వయస్సు చెప్పండి.",
+           "మీతో కలిపి మీ ఇంట్లో ఎంత మంది ఉంటారు?", "దయచేసి 1 నుండి 30 మధ్య ఒక సంఖ్య చెప్పండి.",
+           "మీ ఇంట్లో పిల్లలు ఎవరైనా బడికి వెళ్తారా?", "వారిలో ఎంత మంది పిల్లలు బడికి వెళ్తారు?",
+           "ఈ సంఖ్య కనీసం 1, ఇంట్లోని వ్యక్తుల కంటే తక్కువగా ఉండాలి.",
+           "మీ ఇంటికి తాగునీరు ఎక్కువగా ఎక్కడి నుండి వస్తుంది?", "మీ ప్రాంతంలో అతి పెద్ద సమస్య ఏమిటి?",
+           "అవును", "కాదు", "తెలియదు", "సమాధానం చెప్పదలచుకోలేదు", "ఇంట్లో కుళాయి", "చేతి పంపు లేదా బోరుబావి", "నీటి ట్యాంకర్", "వేరే చోటు నుండి"],
+}
+DEMO_KEYS = ["consent", "group", "age", "age_msg", "hh", "hh_msg", "school", "nchild", "nchild_msg", "water", "problem",
+             "yes", "no", "dk", "refused", "piped", "handpump", "tanker", "other"]
 
-    def row(t, n, en="", hi="", required="", relevant="", constraint="", msg_en="", msg_hi=""):
-        return [t, n, en, hi, required, relevant, constraint, msg_en, msg_hi]
+
+def demo_form() -> None:
+    """The public demo survey (/demo): short, in every call language, and built so each OpenLine feature has a place to show."""
+    names = {"en": "English", "hi": "Hindi", "bn": "Bengali", "gu": "Gujarati", "kn": "Kannada", "ml": "Malayalam",
+             "mr": "Marathi", "pa": "Punjabi", "ta": "Tamil", "te": "Telugu"}  # as in app/voice/i18n.py
+    cols = [f"{names[c]} ({c})" for c in DEMO_TEXT]
+    t = {c: dict(zip(DEMO_KEYS, DEMO_TEXT[c], strict=True)) for c in DEMO_TEXT}
+    tr = lambda key: [t[c][key] for c in DEMO_TEXT]  # noqa: E731
+    blank = [""] * len(cols)
+    hdr = ["type", "name", *[f"label::{c}" for c in cols], "required", "relevant", "constraint",
+           *[f"constraint_message::{c}" for c in cols]]
+
+    def row(typ, name, label=None, required="", relevant="", constraint="", msg=None):
+        return [typ, name, *(tr(label) if label else blank), required, relevant, constraint, *(tr(msg) if msg else blank)]
 
     survey = [
         hdr,
         row("start", "start"),
         row("end", "end"),
-        row("select_one yesno", "consent",
-            "This is a demo of OpenLine, an AI that runs phone surveys. It takes about two minutes. "
-            "The call is recorded for playback, so please don't share real personal details. Shall we begin?",
-            "यह OpenLine का डेमो है, एक AI जो फ़ोन पर सर्वे करता है। इसमें लगभग दो मिनट लगेंगे। कॉल रिकॉर्ड "
-            "की जा रही है, इसलिए कृपया अपनी असली निजी जानकारी न दें। क्या हम शुरू करें?", required="yes"),
-        row("begin_group", "main", "Survey", "सर्वे", relevant="${consent} = 'yes'"),
-        row("integer", "age", "How old are you?", "आपकी उम्र कितनी है?", "yes", "",
-            ". >= 18 and . <= 100", "Please tell me an age between 18 and 100.",
-            "कृपया 18 से 100 के बीच की उम्र बताइए।"),
-        row("integer", "hh_size", "How many people live in your household, including you?",
-            "आपके घर में आपको मिलाकर कितने लोग रहते हैं?", "yes", "",
-            ". >= 1 and . <= 30", "Please tell me a number between 1 and 30.",
-            "कृपया 1 से 30 के बीच की संख्या बताइए।"),
-        row("select_one yesno", "children_school", "Do any children in your household go to school?",
-            "क्या आपके घर का कोई बच्चा स्कूल जाता है?", "yes"),
-        row("integer", "num_children", "How many of them go to school?",
-            "उनमें से कितने बच्चे स्कूल जाते हैं?", "yes", "${children_school} = 'yes'",
-            ". >= 1 and . < ${hh_size}",
-            "That should be at least 1 and fewer than the people in your household.",
-            "यह संख्या कम से कम 1 और घर के लोगों से कम होनी चाहिए।"),
-        row("select_one water", "water_source", "Where does your household mostly get its drinking water from?",
-            "आपके घर में पीने का पानी ज़्यादातर कहाँ से आता है?", "yes"),
-        row("text", "main_problem", "What is the biggest problem in your area?",
-            "आपके इलाके की सबसे बड़ी समस्या क्या है?", "yes"),
+        row("select_one yesno", "consent", "consent", required="yes"),
+        row("begin_group", "main", "group", relevant="${consent} = 'yes'"),
+        row("integer", "age", "age", "yes", "", ". >= 18 and . <= 100", "age_msg"),
+        row("integer", "hh_size", "hh", "yes", "", ". >= 1 and . <= 30", "hh_msg"),
+        row("select_one yesno", "children_school", "school", "yes"),
+        row("integer", "num_children", "nchild", "yes", "${children_school} = 'yes'", ". >= 1 and . < ${hh_size}", "nchild_msg"),
+        row("select_one water", "water_source", "water", "yes"),
+        row("text", "main_problem", "problem", "yes"),
         row("end_group", ""),
     ]
-    choices = [["list_name", "name", f"label::{EN}", f"label::{HI}"],
-               ["yesno", "yes", "Yes", "हाँ"], ["yesno", "no", "No", "नहीं"],
-               ["yesno", "-98", "Don't know", "पता नहीं"], ["yesno", "-99", "Refused", "जवाब नहीं देना चाहते"],
-               ["water", "piped", "A tap at home", "घर में नल"],
-               ["water", "handpump", "A hand pump or borewell", "हैंडपंप या बोरवेल"],
-               ["water", "tanker", "A water tanker", "पानी का टैंकर"],
-               ["water", "other", "Somewhere else", "कहीं और से"],
-               ["water", "-98", "Don't know", "पता नहीं"], ["water", "-99", "Refused", "जवाब नहीं देना चाहते"]]
+    choices = [["list_name", "name", *[f"label::{c}" for c in cols]]]
+    for lst, name, key in [("yesno", "yes", "yes"), ("yesno", "no", "no"), ("yesno", "-98", "dk"), ("yesno", "-99", "refused"),
+                           ("water", "piped", "piped"), ("water", "handpump", "handpump"), ("water", "tanker", "tanker"),
+                           ("water", "other", "other"), ("water", "-98", "dk"), ("water", "-99", "refused")]:
+        choices.append([lst, name, *tr(key)])
     settings = [["form_title", "form_id", "version", "default_language"],
-                ["OpenLine demo survey", "openline_demo", "1", EN]]
+                ["OpenLine demo survey", "openline_demo", "2", cols[0]]]
     write(OUT.parent / "demo" / "openline_demo.xlsx", {"survey": survey, "choices": choices, "settings": settings})
 
 

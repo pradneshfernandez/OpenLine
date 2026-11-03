@@ -91,11 +91,13 @@ class _Node:
 
 def pick_language(languages: list[str], default: str | None, lang: str) -> str:
     """Map a call language ('en', 'hi', 'hi-IN', 'Hindi') to one of the form's language keys."""
-    code = lang.split("-")[0].lower()
-    names = {"en": "english", "hi": "hindi"}
+    from app.voice.i18n import LANGUAGES, lang_code
+
+    code = lang_code(lang)
+    name, native, _ = LANGUAGES[code]
     for key in languages:
         low = key.lower()
-        if f"({code})" in low or low == code or low.startswith(names.get(code, "\0")):
+        if f"({code})" in low or low == code or low.startswith(name.lower()) or native in key:
             return key
     return default if default in languages else (languages[0] if languages else "default")
 

@@ -17,6 +17,7 @@ import { ApiError, campaignApi, problemsCsvUrl, type RespondentRow } from '../ap
 import { CampaignStatusBadge, InterviewStatusBadge, ToneBadge } from '../components/badges'
 import { ErrorNotice, fmtDate, PageBody, PageHeader, SkeletonRows } from '../components/layout'
 import { CampaignProgress, OUTCOMES } from './Campaigns'
+import { langName } from '../languages'
 
 const time = (s: string | null) => (s ? new Date(s).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) : '—')
 const elapsed = (s: string) => {
@@ -157,7 +158,7 @@ export default function CampaignDetail() {
                 <Table.Tr key={r.id}>
                   <Table.Td className="vs-mono">{r.respondent_id}</Table.Td>
                   <Table.Td className="vs-mono">{r.phone}</Table.Td>
-                  <Table.Td>{r.language === 'hi' ? 'Hindi' : 'English'}</Table.Td>
+                  <Table.Td>{langName(r.language)}</Table.Td>
                   <Table.Td ta="right" className="vs-num">{r.attempts} of {s.max_attempts}</Table.Td>
                   <Table.Td>{r.last_outcome ? <InterviewStatusBadge status={r.last_outcome} /> : <Text size="xs" c="gray.7">{STATE_LABEL[r.state]}</Text>}
                     {r.state === 'stopped' && <Text size="xs" c="gray.7">never called again</Text>}</Table.Td>

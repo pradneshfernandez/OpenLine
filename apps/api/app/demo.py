@@ -12,7 +12,6 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse, Response
@@ -21,6 +20,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app import services, storage
+from app.voice.i18n import LangCode
 from app.config import settings
 from app.db import get_session
 from app.models import Form, Interview, Project
@@ -38,18 +38,25 @@ STALE_AFTER = timedelta(minutes=10)  # a demo call still "live" after this doesn
 
 
 class DemoStart(BaseModel):
-    language: Literal["en", "hi"] = "en"
+    language: LangCode = "en"
 
 
 def demo_version(db: Session):
     """The demo form's latest version, uploading sample_forms/demo/openline_demo.xlsx the first time."""
     form = db.scalar(select(Form).where(Form.form_id == DEMO_FORM_ID).order_by(Form.id))
+    data = FORM_FILE.read_bytes()
     if form is not None and (v := services.latest_version(form)) is not None:
-        return v
+        if storage.read_bytes(v.original_file) == data:
+            return v
+        out = services.upload_form(db, form.project, FORM_FILE.name, data, DEMO_USER, form=form)  # the file changed
+        if out.version is None:
+            raise HTTPException(500, f"Demo form didn't convert: {out.errors}")
+        db.commit()
+        return out.version
     project = db.scalar(select(Project).order_by(Project.id)) or Project(name="Demo")
     db.add(project)
     db.flush()
-    out = services.upload_form(db, project, FORM_FILE.name, FORM_FILE.read_bytes(), DEMO_USER)
+    out = services.upload_form(db, project, FORM_FILE.name, data, DEMO_USER)
     if out.version is None:
         raise HTTPException(500, f"Demo form didn't convert: {out.errors}")
     db.commit()

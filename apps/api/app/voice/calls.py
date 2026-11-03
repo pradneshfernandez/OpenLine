@@ -5,7 +5,6 @@ from __future__ import annotations
 import asyncio
 import csv
 import io
-from typing import Literal
 from xml.sax.saxutils import quoteattr
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, WebSocket
@@ -16,6 +15,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app import storage
+from app.voice.i18n import LangCode
 from app.db import get_session
 from app.models import Form, FormVersion, Interview
 from app.voice.config import voice_settings
@@ -37,7 +37,7 @@ def _user(x_user: str | None) -> str:
 class CallIn(BaseModel):
     to: str = Field(pattern=r"^\+[1-9]\d{6,14}$", description="E.164 number, e.g. +9198xxxxxxxx")
     form_version_id: int
-    language: Literal["en", "hi"] = "en"
+    language: LangCode = "en"
     participant_label: str = ""
 
 

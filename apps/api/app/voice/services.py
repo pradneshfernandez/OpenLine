@@ -9,9 +9,21 @@ from __future__ import annotations
 from pipecat.transcriptions.language import Language
 
 from app.voice.config import voice_settings
-from app.voice.i18n import lang_code
+from app.voice.i18n import BCP47, lang_code
 
-LANGUAGES = {"en": Language.EN_IN, "hi": Language.HI_IN}
+# Every language Gnani Prisma and Timbre support (see app.voice.i18n.LANGUAGES).
+LANGUAGES = {code: Language(bcp) for code, bcp in BCP47.items()}
+
+
+def stt_candidates(lang: str, configured: str) -> list[str]:
+    """Languages Prisma listens for in auto mode: the configured set when it covers the call's
+    language, otherwise the call's language plus English and Hindi (the usual mix). 2–4 allowed."""
+    want = [c.strip() for c in configured.split(",") if c.strip()]
+    own = BCP47[lang_code(lang)]
+    if own in want and len(want) >= 2:
+        return want[:4]
+    out = [own] + [c for c in ("en-IN", "hi-IN") if c != own]
+    return out[:4]
 
 
 GNANI_TTFS_P99 = 1.2
@@ -25,7 +37,7 @@ def make_stt(lang: str, sample_rate: int = 8000):
     if cfg.stt_auto_language:
         settings = GnaniSTTService.Settings(
             model="prisma-v3.0", language="indic-auto",
-            language_candidates=[c.strip() for c in cfg.stt_languages.split(",") if c.strip()],
+            language_candidates=stt_candidates(lang, cfg.stt_languages),
             format=cfg.stt_format,
         )
     else:
@@ -48,7 +60,7 @@ def make_tts(lang: str, voice: str | None = None, speed: float = 1.0, sample_rat
         api_key=cfg.gnani_api_key,
         sample_rate=sample_rate,
         settings=GnaniTTSService.Settings(
-            voice=voice or (cfg.voice_hi if code == "hi" else cfg.voice_en),
+            voice=voice or (cfg.voice_en if code == "en" else cfg.voice_hi),
             model=cfg.tts_model,
             language=LANGUAGES[code],
             speed=speed,

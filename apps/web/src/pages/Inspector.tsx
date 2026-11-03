@@ -76,6 +76,7 @@ import ListenButton from '../components/Listen'
 import { ErrorNotice } from '../components/layout'
 import { useRouteVersion } from '../hooks'
 import { LanguageChip, langLabel, MessagesTable } from './Upload'
+import { langAttr } from '../languages'
 
 type Pending = Record<string, { change: Change; original: string | boolean }>
 type ValueOf = (c: Omit<Change, 'value'>, original: string | boolean) => string | boolean
@@ -92,7 +93,6 @@ const worstOf = (issues: Issue[]) =>
   issues.reduce<Severity | null>((w, i) => (!w || SEVERITY_RANK[i.severity] > SEVERITY_RANK[w] ? i.severity : w), null)
 const countBySeverity = (issues: Issue[]) =>
   Object.fromEntries(SEVERITIES.map((s) => [s, issues.filter((i) => i.severity === s).length])) as Record<Severity, number>
-const isHindi = (l: string) => /hindi|^hi\b/i.test(l)
 const firstLabel = (q: Question, lang: string) => stripHtml(q.labels[lang] ?? Object.values(q.labels).find(Boolean) ?? '')
 
 const TREE_W = 400
@@ -234,7 +234,7 @@ export default function Inspector() {
               <Group gap={6} wrap="nowrap">
                 <Text size="xs" c="gray.7">Tree language</Text>
                 <SegmentedControl value={activeLang} onChange={setLang} aria-label="Tree language"
-                  data={languages.map((l) => ({ value: l, label: <span lang={isHindi(l) ? 'hi' : undefined}>{isHindi(l) ? 'हिन्दी' : langLabel(l)}</span> }))} />
+                  data={languages.map((l) => ({ value: l, label: <span lang={langAttr(l)}>{langLabel(l)}</span> }))} />
               </Group>
             )}
             {!wide && <Button variant="default" leftSection={<IconLayoutSidebarRight size={16} />} onClick={() => setSummaryOpen(true)}>Summary</Button>}
@@ -401,7 +401,7 @@ function TreeItem({ q, lang, active, issues, collapsed, onToggle, onClick }: {
           <TypeLabel>{q.raw_type.split(/\s+/)[0]}</TypeLabel>
           {q.not_used_by_phone && <Box component="span" className="vs-type" style={{ fontFamily: 'inherit' }}>not used by phone</Box>}
         </Group>
-        {label && <Text size="sm" c={q.not_used_by_phone ? 'gray.7' : 'gray.8'} lineClamp={2} lang={isHindi(lang) ? 'hi' : undefined} lh={isHindi(lang) ? 1.6 : 1.4}>{label}</Text>}
+        {label && <Text size="sm" c={q.not_used_by_phone ? 'gray.7' : 'gray.8'} lineClamp={2} lang={langAttr(lang)} lh={langAttr(lang) ? 1.6 : 1.4}>{label}</Text>}
       </Box>
       {worst && (
         <Tooltip label={<Stack gap={2}>{open.map((i) => <Text key={i.id} size="xs">{SEVERITY_LABEL[i.severity]}: {i.check_title}</Text>)}</Stack>}>
@@ -454,7 +454,7 @@ function PerLanguageText({ q, field, texts, languages, defaultLang, editable, va
         const original = texts[l] ?? ''
         const value = valueOf(base, original) as string
         const missing = anyText && !value
-        const hi = isHindi(l)
+        const native = langAttr(l)
         return (
           <Box key={l} style={{ border: `1px solid ${missing ? '#c8302a' : '#8a919a'}`, borderRadius: 4, overflow: 'hidden', background: 'white' }}>
             <Group justify="space-between" px={8} h={28} bg={missing ? '#fbe9e7' : '#f8f9fa'}
@@ -465,13 +465,13 @@ function PerLanguageText({ q, field, texts, languages, defaultLang, editable, va
                   {langLabel(l)}{l === defaultLang && languages.length > 1 ? ' · default' : ''}{missing ? ' · missing' : ''}
                 </Text>
               </Group>
-              {field !== 'constraint_message' && <ListenButton text={spokenPreview(value)} lang={hi ? 'hi' : 'en'} />}
+              {field !== 'constraint_message' && <ListenButton text={spokenPreview(value)} lang={native ?? 'en'} />}
             </Group>
-            <Textarea variant="unstyled" px={10} minRows={minRows} readOnly={!editable} lang={hi ? 'hi' : undefined}
+            <Textarea variant="unstyled" px={10} minRows={minRows} readOnly={!editable} lang={native}
               aria-label={`${field.replace('_', ' ')} in ${langLabel(l)}`}
-              placeholder={editable ? (placeholder ?? (hi ? 'हिन्दी में लिखें…' : `Add text in ${langLabel(l)}`)) : '—'}
+              placeholder={editable ? (placeholder ?? (native ? `${langLabel(l)}…` : `Add text in ${langLabel(l)}`)) : '—'}
               value={value} onChange={(e) => setChange({ ...base, value: e.currentTarget.value }, original)}
-              styles={{ input: { lineHeight: hi ? 1.7 : 1.5, fontSize: 14, border: 0, padding: '8px 0', minHeight: 0 } }} />
+              styles={{ input: { lineHeight: native ? 1.7 : 1.5, fontSize: 14, border: 0, padding: '8px 0', minHeight: 0 } }} />
           </Box>
         )
       })}
@@ -675,7 +675,7 @@ function QuestionDetail({ q, v, languages, defaultLang, issues, byRow, choices, 
                     const original = c.labels[l] ?? ''
                     return (
                       <Table.Td key={l}>
-                        <TextInput size="xs" variant={editable ? 'default' : 'unstyled'} readOnly={!editable} lang={isHindi(l) ? 'hi' : undefined}
+                        <TextInput size="xs" variant={editable ? 'default' : 'unstyled'} readOnly={!editable} lang={langAttr(l)}
                           aria-label={`${c.name} label in ${langLabel(l)}`} value={valueOf(base, original) as string}
                           error={!original && Object.values(c.labels).some(Boolean) ? true : undefined}
                           onChange={(e) => setChange({ ...base, value: e.currentTarget.value }, original)} />
@@ -809,7 +809,7 @@ function GroupSummary({ g, v, lang, languages, defaultLang, issuesByQuestion, by
                   <Table.Td w={36}><KindIcon kind={q.kind} /></Table.Td>
                   <Table.Td>
                     <Text size="sm" className="vs-mono" fw={600}>{q.name}</Text>
-                    <Text size="xs" c="gray.7" lineClamp={1} lang={isHindi(lang) ? 'hi' : undefined}>{firstLabel(q, lang)}</Text>
+                    <Text size="xs" c="gray.7" lineClamp={1} lang={langAttr(lang)}>{firstLabel(q, lang)}</Text>
                   </Table.Td>
                   <Table.Td w={120}><TypeLabel>{q.raw_type.split(/\s+/)[0]}</TypeLabel></Table.Td>
                   <Table.Td w={130}>{q.relevant && <Tooltip label={q.relevant_plain || q.relevant}><Text size="xs" c="gray.7">has skip logic</Text></Tooltip>}</Table.Td>

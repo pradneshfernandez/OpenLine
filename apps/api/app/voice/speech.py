@@ -20,11 +20,9 @@ from app import storage
 from app.db import get_session
 from app.models import Project
 from app.voice.config import voice_settings
-from app.voice.i18n import lang_code
+from app.voice.i18n import BCP47, CODES, LangCode, lang_code
 
 router = APIRouter(prefix="/api")
-
-BCP47 = {"en": "en-IN", "hi": "hi-IN"}
 
 
 def voice_list() -> list[str]:
@@ -38,7 +36,8 @@ def project_voices(project: Project | None) -> dict[str, dict]:
     cfg = voice_settings()
     saved = (project.voices if project else None) or {}
     out = {}
-    for code, default in (("en", cfg.voice_en), ("hi", cfg.voice_hi)):
+    for code in CODES:
+        default = cfg.voice_en if code == "en" else cfg.voice_hi
         v = saved.get(code) or {}
         out[code] = {"voice": v.get("voice") or default, "speed": float(v.get("speed") or 1.0)}
     return out
@@ -114,7 +113,7 @@ def get_voices(project_id: int, db: Session = Depends(get_session)):
 
 
 @router.put("/projects/{project_id}/voices")
-def put_voices(project_id: int, body: dict[Literal["en", "hi"], VoiceIn], db: Session = Depends(get_session)):
+def put_voices(project_id: int, body: dict[LangCode, VoiceIn], db: Session = Depends(get_session)):
     p = db.get(Project, project_id)
     if p is None:
         raise HTTPException(404)

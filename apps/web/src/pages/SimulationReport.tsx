@@ -9,6 +9,7 @@ import { InterviewStatusBadge, PersonaBadge, RunStatusBadge } from '../component
 import { ErrorNotice, fmtDate, PageBody, PageHeader, SkeletonRows, Tile } from '../components/layout'
 import { tone } from '../theme'
 import { NewSimulation, noiseLabel, pct } from './Simulations'
+import { type LangCode, langAttr, langName } from '../languages'
 
 const cellTone = (r: Ratio | undefined) => {
   if (!r || !r.total) return null
@@ -40,7 +41,7 @@ export default function SimulationReport() {
   const r = run.report
   const s = run.settings
   const live = run.status === 'running' || run.status === 'queued'
-  const langs = s.languages as ('en' | 'hi')[]
+  const langs = s.languages as LangCode[]
 
   return (
     <>
@@ -55,7 +56,7 @@ export default function SimulationReport() {
             <Text size="sm" fw={600}>Run settings</Text>
             <Text size="sm" c="gray.8">Calls <b>{s.runs}</b></Text>
             <Group gap={4}><Text size="sm" c="gray.8">Personas</Text>{s.personas.map((p) => <PersonaBadge key={p} persona={p} />)}</Group>
-            <Text size="sm" c="gray.8">Languages <b>{langs.map((l) => (l === 'hi' ? 'Hindi' : 'English')).join(' · ')}</b></Text>
+            <Text size="sm" c="gray.8">Languages <b>{langs.map(langName).join(' · ')}</b></Text>
             {s.noise && <Text size="sm" c="gray.8">Noise <b>{s.noise.map(noiseLabel).join(' · ')}</b></Text>}
             <Text size="sm" c="gray.8">{s.parallel} at a time</Text>
           </Group>
@@ -97,7 +98,7 @@ export default function SimulationReport() {
               ))}</Group>
             </Group>
             <Table>
-              <Table.Thead><Table.Tr><Table.Th>Question</Table.Th>{langs.map((l) => <Table.Th key={l} w={110} ta="center">{l === 'hi' ? 'Hindi' : 'English'}</Table.Th>)}<Table.Th w={110} ta="center">All</Table.Th></Table.Tr></Table.Thead>
+              <Table.Thead><Table.Tr><Table.Th>Question</Table.Th>{langs.map((l) => <Table.Th key={l} w={110} ta="center">{langName(l)}</Table.Th>)}<Table.Th w={110} ta="center">All</Table.Th></Table.Tr></Table.Thead>
               <Table.Tbody>
                 {r.grid.map((g) => (
                   <Table.Tr key={g.question}>
@@ -120,8 +121,8 @@ export default function SimulationReport() {
                 {r.misses.map((m, n) => (
                   <Table.Tr key={n}>
                     <Table.Td className="vs-mono">{m.key}</Table.Td>
-                    <Table.Td><PersonaBadge persona={m.persona} /><Text size="xs" c="gray.7">{m.language === 'hi' ? 'Hindi' : 'English'}</Text></Table.Td>
-                    <Table.Td maw={220}><Text size="sm" lang={m.language === 'hi' ? 'hi' : undefined}>{m.heard ? `“${m.heard}”` : '—'}</Text></Table.Td>
+                    <Table.Td><PersonaBadge persona={m.persona} /><Text size="xs" c="gray.7">{langName(m.language)}</Text></Table.Td>
+                    <Table.Td maw={220}><Text size="sm" lang={langAttr(m.language)}>{m.heard ? `“${m.heard}”` : '—'}</Text></Table.Td>
                     <Table.Td><Text size="sm"><Text span c="green.7" fw={600}>{m.expected}</Text> → <Text span c="red.6" fw={600}>{m.got == null ? '(none)' : String(m.got)}</Text></Text></Table.Td>
                     <Table.Td><Anchor component={Link} to={`/interviews/${m.interview_id}`} size="sm" className="vs-mono">#{String(m.interview_id).padStart(4, '0')}</Anchor></Table.Td>
                   </Table.Tr>
@@ -141,7 +142,7 @@ export default function SimulationReport() {
                 <Table.Tr key={i.id}>
                   <Table.Td><Anchor component={Link} to={`/interviews/${i.id}`} className="vs-mono" size="sm">#{String(i.id).padStart(4, '0')}</Anchor></Table.Td>
                   <Table.Td><PersonaBadge persona={i.persona} /></Table.Td>
-                  <Table.Td>{i.language === 'hi' ? 'Hindi' : 'English'}</Table.Td>
+                  <Table.Td>{langName(i.language)}</Table.Td>
                   <Table.Td><InterviewStatusBadge status={i.status} />{i.error && <Text size="xs" c="red.6" lineClamp={1} maw={360}>{i.error}</Text>}</Table.Td>
                   <Table.Td ta="right" className="vs-num">{i.total ? `${i.correct} of ${i.total}` : '—'}</Table.Td>
                 </Table.Tr>

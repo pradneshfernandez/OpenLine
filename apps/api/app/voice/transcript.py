@@ -21,7 +21,7 @@ from app import storage
 from app.db import SessionLocal
 from app.models import Interview
 from app.voice.config import voice_settings
-from app.voice.i18n import lang_code
+from app.voice.i18n import BCP47, lang_code
 
 MODEL = "prisma-v3.0"
 MAX_FILE_BYTES = 9 * 1024 * 1024  # API limit is 10 MB per file; keep headroom for the header
@@ -30,8 +30,9 @@ CHANNELS = ("respondent", "agent")  # left, right
 
 
 def batch_language(lang: str) -> str:
-    """Hindi calls are often Hinglish: let Prisma v3 decide per segment between the two."""
-    return "hi-IN,en-IN" if lang_code(lang) == "hi" else "en-IN"
+    """Indian-language calls are often mixed with English: let Prisma v3 decide per segment."""
+    code = lang_code(lang)
+    return "en-IN" if code == "en" else f"{BCP47[code]},en-IN"
 
 
 def split_channels(wav_bytes: bytes) -> tuple[int, list[tuple[str, array.array]]]:

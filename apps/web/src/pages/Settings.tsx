@@ -10,6 +10,7 @@ import { ToneBadge } from '../components/badges'
 import { ErrorNotice, PageBody, PageHeader, Panel, SkeletonRows } from '../components/layout'
 import { useProjectId } from '../hooks'
 import { ThresholdsEditor } from './Report'
+import { LANG_CODES, type LangCode, langAttr, langLabel } from '../languages'
 
 type Service = { name: string; what: string; ok: (s: VoiceStatus) => boolean; keys: string[]; detail?: (s: VoiceStatus) => string }
 
@@ -74,31 +75,40 @@ export default function Settings() {
   )
 }
 
-const SAMPLE = {
+// "How many people live in your household, including you?" in each call language.
+const SAMPLE: Record<LangCode, string> = {
   en: 'Hello! How many people live in your household, including you?',
   hi: 'नमस्ते! आपके घर में आपको मिलाकर कितने लोग रहते हैं?',
+  bn: 'নমস্কার! আপনাকে নিয়ে আপনার বাড়িতে কতজন থাকেন?',
+  gu: 'નમસ્તે! તમારા સહિત તમારા ઘરમાં કેટલા લોકો રહે છે?',
+  kn: 'ನಮಸ್ಕಾರ! ನಿಮ್ಮನ್ನೂ ಸೇರಿ ನಿಮ್ಮ ಮನೆಯಲ್ಲಿ ಎಷ್ಟು ಜನ ವಾಸಿಸುತ್ತಾರೆ?',
+  ml: 'നമസ്കാരം! നിങ്ങൾ ഉൾപ്പെടെ നിങ്ങളുടെ വീട്ടിൽ എത്ര പേർ താമസിക്കുന്നു?',
+  mr: 'नमस्कार! तुमच्यासह तुमच्या घरात किती लोक राहतात?',
+  pa: 'ਸਤ ਸ੍ਰੀ ਅਕਾਲ! ਤੁਹਾਡੇ ਸਮੇਤ ਤੁਹਾਡੇ ਘਰ ਵਿੱਚ ਕਿੰਨੇ ਲੋਕ ਰਹਿੰਦੇ ਹਨ?',
+  ta: 'வணக்கம்! உங்களையும் சேர்த்து உங்கள் வீட்டில் எத்தனை பேர் வசிக்கிறார்கள்?',
+  te: 'నమస్కారం! మీతో కలిపి మీ ఇంట్లో ఎంత మంది ఉంటారు?',
 }
 
 function Voices({ projectId }: { projectId: number }) {
   const qc = useQueryClient()
   const list = useQuery({ queryKey: ['voice-list'], queryFn: voiceSettingsApi.voices, staleTime: Infinity })
   const saved = useQuery({ queryKey: ['voices', projectId], queryFn: () => voiceSettingsApi.get(projectId) })
-  const [edits, setEdits] = useState<Partial<Record<'en' | 'hi', VoiceChoice>>>({})
+  const [edits, setEdits] = useState<Partial<Record<LangCode, VoiceChoice>>>({})
   const save = useMutation({
     mutationFn: () => voiceSettingsApi.save(projectId, { ...saved.data, ...edits }),
     onSuccess: () => { setEdits({}); qc.invalidateQueries({ queryKey: ['voices', projectId] }); notifications.show({ color: 'green', message: 'Voices saved; new calls use them.' }) },
   })
-  const value = (l: 'en' | 'hi') => edits[l] ?? saved.data?.[l]
+  const value = (l: LangCode) => edits[l] ?? saved.data?.[l]
   return (
     <Panel title="Agent voices" meta={list.data ? `Gnani Timbre ${list.data.model} · ${list.data.voices.length} voices` : undefined} p={0}>
       {saved.isLoading ? <SkeletonRows rows={2} /> : (
         <Table>
           <Table.Tbody>
-            {(['en', 'hi'] as const).map((l) => {
+            {LANG_CODES.map((l) => {
               const v = value(l)
               return (
                 <Table.Tr key={l}>
-                  <Table.Td w={120}><Text fw={600} size="sm" lang={l === 'hi' ? 'hi' : undefined}>{l === 'hi' ? 'हिन्दी Hindi' : 'English'}</Text></Table.Td>
+                  <Table.Td w={170}><Text fw={600} size="sm" lang={langAttr(l)}>{langLabel(l)}</Text></Table.Td>
                   <Table.Td w={280}>
                     <Select searchable data={list.data?.voices ?? []} value={v?.voice ?? null} aria-label={`Voice for ${l}`}
                       onChange={(voice) => voice && setEdits((e) => ({ ...e, [l]: { speed: v?.speed ?? 1, voice } }))} />

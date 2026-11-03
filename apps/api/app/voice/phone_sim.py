@@ -11,7 +11,6 @@ can drop a share of frames to imitate packet loss.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Literal
 
 from fastapi import APIRouter, Depends, Header, HTTPException
 from fastapi.responses import FileResponse
@@ -19,6 +18,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.voice.i18n import LangCode
 from app.db import get_session
 from app.models import Form, FormVersion, Interview
 
@@ -30,7 +30,7 @@ SIM_CALL_PREFIX = "SIM"  # call_sid of simulated calls: no Twilio REST hang-up f
 
 class SimCallIn(BaseModel):
     form_version_id: int
-    language: Literal["en", "hi"] = "en"
+    language: LangCode = "en"
     label: str = Field("phone sim", max_length=200)
 
 

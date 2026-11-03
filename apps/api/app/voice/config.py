@@ -45,7 +45,7 @@ class VoiceSettings(BaseSettings):
 
     tts_model: str = "timbre-v2.5"
     voice_en: str = "Nalini"
-    voice_hi: str = "Nalini"
+    voice_hi: str = "Nalini"  # also the default for the other Indian languages
     stt_auto_language: bool = False  # Prisma v3.0 indic-auto for mid-call language switching
     # With auto language: the 2-4 languages Prisma may hear (respondents switch between them mid-sentence).
     stt_languages: str = "en-IN,hi-IN,ta-IN"

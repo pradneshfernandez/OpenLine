@@ -25,6 +25,7 @@ import { api, ApiError, type Noise, type Persona, simulationApi, type Simulation
 import { RunStatusBadge } from '../components/badges'
 import { ErrorNotice, fmtDate, PageBody, PageHeader, SkeletonRows } from '../components/layout'
 import { useProjectId } from '../hooks'
+import { langAttr, langName } from '../languages'
 
 export const PERSONAS: { value: Persona; label: string; help: string }[] = [
   { value: 'cooperative', label: 'Cooperative', help: 'Says the answer plainly' },
@@ -89,7 +90,7 @@ function RunRow({ r }: { r: SimulationRow }) {
     <Table.Tr>
       <Table.Td><Anchor component={Link} to={`/simulations/${r.id}`} fw={600} size="sm">Run #{r.id}</Anchor></Table.Td>
       <Table.Td><Text size="sm">{r.form.title} · v{r.form.version_no}</Text>
-        <Text size="xs" c="gray.7">{r.settings.personas.join(', ')} · {r.settings.languages.map((l) => (l === 'hi' ? 'Hindi' : 'English')).join(' + ')}
+        <Text size="xs" c="gray.7">{r.settings.personas.join(', ')} · {r.settings.languages.map(langName).join(' + ')}
           {r.settings.noise && r.settings.noise.some((n) => n !== 'clean') && <> · {r.settings.noise.map(noiseLabel).join(', ')}</>}</Text></Table.Td>
       <Table.Td><RunStatusBadge status={r.status} />{r.error && <Text size="xs" c="red.6">{r.error}</Text>}</Table.Td>
       <Table.Td ta="right" className="vs-num">{r.finished} of {r.runs}</Table.Td>
@@ -178,7 +179,7 @@ export function NewSimulation({ opened, onClose, initial }: {
                     <Table.Tr key={n}>
                       <Table.Td className="vs-mono" fz={12}>{s.key ?? '(another?)'}</Table.Td>
                       <Table.Td className="vs-mono" fz={12}>{s.value}</Table.Td>
-                      <Table.Td fz={13} lang={pvLang === 'hi' ? 'hi' : undefined}>“{s.utterance}”</Table.Td>
+                      <Table.Td fz={13} lang={langAttr(pvLang)}>“{s.utterance}”</Table.Td>
                     </Table.Tr>
                   ))}
                 </Table.Tbody>

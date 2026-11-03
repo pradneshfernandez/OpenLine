@@ -1,8 +1,8 @@
 """Check Gnani TTS and STT at telephone quality (8 kHz) before calling anyone.
 
-    uv run python scripts/gnani_smoke.py
+    uv run python scripts/gnani_smoke.py [ta kn ...]     (default: every call language)
 
-For English and Hindi: Timbre speaks a sentence at 8 kHz, then the audio is streamed in real
+For each language: Timbre (the agent's default voice) speaks a sentence at 8 kHz, then the audio is streamed in real
 time into Prisma realtime STT (format="transcribe"), and the transcript is printed. Numbers
 should come back as digits.
 """
@@ -34,9 +34,18 @@ from pipecat.workers.runner import WorkerRunner  # noqa: E402
 from app.voice.services import make_stt, make_tts  # noqa: E402
 
 RATE = 8000
+# "I am 34 (or 45) years old and there are 5 (or 6) people in my house."; the digits should come back.
 SENTENCES = {
     "en": "I am thirty four years old and there are five people in my house.",
     "hi": "मेरी उम्र पैंतालीस साल है और मेरे घर में छह लोग रहते हैं।",
+    "bn": "আমার বয়স চৌত্রিশ বছর, আর আমাদের বাড়িতে পাঁচজন থাকে।",
+    "gu": "મારી ઉંમર ચોત્રીસ વર્ષ છે અને અમારા ઘરમાં પાંચ લોકો રહે છે.",
+    "kn": "ನನ್ನ ವಯಸ್ಸು ಮೂವತ್ತನಾಲ್ಕು ವರ್ಷ, ನಮ್ಮ ಮನೆಯಲ್ಲಿ ಐದು ಜನ ಇದ್ದಾರೆ.",
+    "ml": "എനിക്ക് മുപ്പത്തിനാല് വയസ്സാണ്, ഞങ്ങളുടെ വീട്ടിൽ അഞ്ച് പേരുണ്ട്.",
+    "mr": "माझे वय चौतीस वर्षे आहे आणि आमच्या घरात पाच लोक राहतात.",
+    "pa": "ਮੇਰੀ ਉਮਰ ਚੌਂਤੀ ਸਾਲ ਹੈ ਅਤੇ ਸਾਡੇ ਘਰ ਵਿੱਚ ਪੰਜ ਲੋਕ ਰਹਿੰਦੇ ਹਨ।",
+    "ta": "எனக்கு முப்பத்தி நான்கு வயது, எங்கள் வீட்டில் ஐந்து பேர் இருக்கிறார்கள்.",
+    "te": "నా వయస్సు ముప్పై నాలుగు సంవత్సరాలు, మా ఇంట్లో ఐదుగురు ఉంటారు.",
 }
 
 
@@ -98,7 +107,7 @@ async def check(lang: str) -> None:
 
 
 async def main():
-    for lang in ("en", "hi"):
+    for lang in sys.argv[1:] or SENTENCES:
         await check(lang)
 
 

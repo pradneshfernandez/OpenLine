@@ -18,7 +18,7 @@ CSV = (b"respondent_id,phone,language\n"
        b"R2,+919812345678,English\n"
        b"R3,12345,en\n"
        b"R4,9876543210,hi\n"
-       b"R5,+919800011122,tamil\n"
+       b"R5,+919800011122,french\n"
        b"R6,+919800011133,en\n")
 
 

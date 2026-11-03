@@ -27,6 +27,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.voice.i18n import CODES, LANGUAGES
 from app.db import SessionLocal, get_session
 from app.models import Campaign, CampaignRespondent, FormVersion, Interview, Project
 from app.voice.session import FINAL_STATUSES
@@ -38,7 +39,9 @@ DEFAULTS = {"calling_start": "09:00", "calling_end": "19:00", "max_attempts": 3,
 STOP_OUTCOMES = {"refused", "opted-out"}
 RETRY_OUTCOMES = {"no-answer", "busy", "failed", "partial"}
 OUTCOMES = ["completed", "partial", "no-answer", "busy", "callback", "refused", "opted-out", "failed"]
-LANGS = {"en": "en", "english": "en", "eng": "en", "hi": "hi", "hindi": "hi", "हिन्दी": "hi", "हिंदी": "hi"}
+# Language column values: code ("ta"), locale ("ta-IN"), English name ("Tamil") or native name ("தமிழ்").
+LANGS = {"eng": "en", "हिंदी": "hi",
+         **{k: c for c, (name, native, bcp) in LANGUAGES.items() for k in (c, bcp.lower(), name.lower(), native.lower())}}
 STALE_CALL = timedelta(minutes=20)  # a call that never reported back is treated as failed
 
 
@@ -118,7 +121,7 @@ def read_respondents(data: bytes) -> dict:
         seen_id.add(rid)
         counts["ok"] += 1
         ok.append({"row": n, "respondent_id": rid or f"row{n}", "phone": phone, "language": lang})
-    langs = {c: sum(1 for r in ok if r["language"] == c) for c in ("en", "hi")}
+    langs = {c: sum(1 for r in ok if r["language"] == c) for c in CODES if any(r["language"] == c for r in ok)}
     preview = sorted([{**r, "phone": mask(r["phone"]), "problem": None} for r in ok[:8]] + problems[:12],
                      key=lambda r: r["row"])
     return {"rows": ok, "problems": problems, "counts": counts, "languages": langs, "preview": preview}

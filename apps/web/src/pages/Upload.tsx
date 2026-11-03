@@ -24,14 +24,14 @@ import { api, ApiError, type Message, type UploadResult, versionPath } from '../
 import { StatusBadge, TypeLabel } from '../components/badges'
 import { ErrorNotice, PageBody, PageHeader } from '../components/layout'
 import { useProjectId } from '../hooks'
+import { langAttr, langLabel } from '../languages'
 
 const MAX_MB = 10
 const ACCEPT = {
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
   'application/vnd.ms-excel': ['.xls'],
 }
-const LANG_NAME: Record<string, string> = { English: 'English', Hindi: 'हिन्दी Hindi', en: 'English', hi: 'हिन्दी Hindi' }
-export const langLabel = (l: string) => LANG_NAME[l] ?? LANG_NAME[l.replace(/\s*\(.*\)$/, '')] ?? l
+export { langLabel }
 
 /** Drop zone used on the upload page and the forms-list empty state. Without `onFile` it opens /upload with the file. */
 export function UploadDropzone({ onFile, loading, compact }: { onFile?: (f: File) => void; loading?: boolean; compact?: boolean }) {
@@ -239,7 +239,7 @@ function UploadOutcome({ result, onExclude }: { result: UploadResult; onExclude:
 
 export function LanguageChip({ lang, isDefault }: { lang: string; isDefault?: boolean }) {
   return (
-    <Box component="span" px={6} h={22} fz={12} fw={500} lang={/hindi|^hi$/i.test(lang) ? 'hi' : undefined}
+    <Box component="span" px={6} h={22} fz={12} fw={500} lang={langAttr(lang)}
       style={{ display: 'inline-flex', alignItems: 'center', border: `1px solid ${isDefault ? '#121417' : '#c3c8ce'}`, borderRadius: 3, background: 'white' }}>
       {langLabel(lang)}{isDefault && ' · default'}
     </Box>
