@@ -2,6 +2,7 @@
 
     STT_AUTO_LANGUAGE=true uv run uvicorn app.main:app --port 8000      # no --reload while recording
     uv run --with playwright python scripts/record_demo_video.py --out demo_call.mp4
+    uv run --with playwright python scripts/record_demo_video.py --follow --out my_call.mp4  # you talk on /demo
 
 1. Starts a demo call (/api/demo/calls) and opens /demo?watch=<id> in headless Chrome, recording it.
 2. Phones /ws like Twilio and answers as a scripted respondent voiced by Gnani Timbre. Like the
@@ -136,6 +137,27 @@ async def respond(ws_url: str, interview_id: int, call_sid: str, max_seconds: fl
             recv.cancel()
 
 
+def wait_for_next_demo_call(timeout: float = 1800) -> int:
+    """For --follow: the id of the next demo call started after now (from /demo in any browser)."""
+    with SessionLocal() as db:
+        last = db.scalar(select(Interview.id).where(Interview.created_by == "demo").order_by(Interview.id.desc())) or 0
+    print("Waiting for a call: open /demo?present=1 and press Start the call…", flush=True)
+    t0 = time.time()
+    while time.time() - t0 < timeout:
+        with SessionLocal() as db:
+            new = db.scalar(select(Interview.id).where(Interview.created_by == "demo", Interview.id > last)
+                            .order_by(Interview.id))
+        if new:
+            return new
+        time.sleep(0.3)
+    raise SystemExit("No demo call started")
+
+
+def call_finished(interview_id: int) -> bool:
+    with SessionLocal() as db:
+        return db.get(Interview, interview_id).status in FINAL_STATUSES
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--base", default="http://localhost:8000")
@@ -143,11 +165,17 @@ def main():
     ap.add_argument("--max-seconds", type=float, default=240)
     ap.add_argument("--tail", type=float, default=25, help="seconds to keep filming after the call (second pass)")
     ap.add_argument("--out", default="demo_call.mp4")
+    ap.add_argument("--follow", action="store_true",
+                    help="don't place a scripted call: film the next call someone makes on /demo")
     args = ap.parse_args()
     from playwright.sync_api import sync_playwright
 
-    call = httpx.post(f"{args.base}/api/demo/calls", json={"language": args.language}).json()
-    interview_id = call["interview_id"]
+    if args.follow:
+        interview_id = wait_for_next_demo_call()
+        call = None
+    else:
+        call = httpx.post(f"{args.base}/api/demo/calls", json={"language": args.language}).json()
+        interview_id = call["interview_id"]
     print(f"interview {interview_id}")
     tmp = Path(args.out).with_suffix(".frames")
     tmp.mkdir(parents=True, exist_ok=True)
@@ -159,12 +187,16 @@ def main():
         page = ctx.new_page()
         page_t0 = time.time()
         page.goto(f"{args.base}/demo?watch={interview_id}")
-        # Playwright's sync API owns this thread's event loop, so the caller runs in its own thread.
-        caller = threading.Thread(target=lambda: asyncio.run(respond(
-            args.base.replace("http", "ws") + "/ws", interview_id, call["call_sid"], args.max_seconds)))
-        caller.start()
-        while caller.is_alive():
-            page.wait_for_timeout(500)
+        if args.follow:  # a person is on the call: film until it ends
+            while not call_finished(interview_id):
+                page.wait_for_timeout(500)
+        else:
+            # Playwright's sync API owns this thread's event loop, so the caller runs in its own thread.
+            caller = threading.Thread(target=lambda: asyncio.run(respond(
+                args.base.replace("http", "ws") + "/ws", interview_id, call["call_sid"], args.max_seconds)))
+            caller.start()
+            while caller.is_alive():
+                page.wait_for_timeout(500)
         page.wait_for_timeout(args.tail * 1000)  # the second pass and recording land on the page
         video = page.video.path()
         ctx.close()
@@ -178,7 +210,10 @@ def main():
     cmd = ["ffmpeg", "-y", "-loglevel", "error", "-i", str(video)]
     if wav:
         # Both voices, centred: the recording is stereo (respondent left, agent right).
-        cmd += ["-itsoffset", f"{max(offset, 0):.3f}", "-i", str(wav), "-map", "0:v", "-map", "1:a",
+        # Positive offset: the call started after filming began, so delay the audio; negative (a
+        # followed call that began before the page opened): skip the audio's first seconds.
+        sync = ["-itsoffset", f"{offset:.3f}"] if offset >= 0 else ["-ss", f"{-offset:.3f}"]
+        cmd += [*sync, "-i", str(wav), "-map", "0:v", "-map", "1:a",
                 "-af", "pan=stereo|c0=0.5*c0+0.5*c1|c1=0.5*c0+0.5*c1,aresample=48000", "-c:a", "aac", "-b:a", "160k"]
     cmd += ["-vf", "scale=1920:1080:flags=lanczos", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", "20", "-movflags", "+faststart", args.out]
     subprocess.run(cmd, check=True)

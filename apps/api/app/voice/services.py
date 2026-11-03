@@ -14,6 +14,9 @@ from app.voice.i18n import lang_code
 LANGUAGES = {"en": Language.EN_IN, "hi": Language.HI_IN}
 
 
+GNANI_TTFS_P99 = 1.2
+
+
 def make_stt(lang: str, sample_rate: int = 8000):
     """Gnani Prisma realtime STT. `format="transcribe"` turns spoken numbers into digits."""
     from pipecat_gnani import GnaniSTTService
@@ -29,7 +32,10 @@ def make_stt(lang: str, sample_rate: int = 8000):
         settings = GnaniSTTService.Settings(
             language=LANGUAGES[lang_code(lang)], format="transcribe",
         )
-    return GnaniSTTService(api_key=cfg.gnani_api_key, sample_rate=sample_rate, settings=settings)
+    # Speech end → final transcript, measured on 8 kHz calls (Nov 3): 0.83–1.06 s. Pipecat uses it as
+    # the safety net when no finalized transcript arrives.
+    return GnaniSTTService(api_key=cfg.gnani_api_key, sample_rate=sample_rate, settings=settings,
+                           ttfs_p99_latency=GNANI_TTFS_P99)
 
 
 def make_tts(lang: str, voice: str | None = None, speed: float = 1.0, sample_rate: int = 8000):
@@ -60,7 +66,7 @@ _LLM = {
     "groq": ("pipecat.services.groq.llm", "GroqLLMService", "llama-3.3-70b-versatile"),
     "openai": ("pipecat.services.openai.llm", "OpenAILLMService", "gpt-4.1-mini"),
     "anthropic": ("pipecat.services.anthropic.llm", "AnthropicLLMService", "claude-haiku-5-5"),
-    "google": ("pipecat.services.google.llm", "GoogleLLMService", "gemini-3.5-flash-lite"),  # ~2.5 s per answer
+    "google": ("pipecat.services.google.llm", "GoogleLLMService", "gemini-3.5-flash-lite"),  # ~1.2–1.9 s per answer
 }
 # Fallback model when LLM_FALLBACK_PROVIDER is the same provider and no LLM_FALLBACK_MODEL is set.
 _FALLBACK_MODEL = {"google": "gemini-3.6-flash", "groq": "llama-3.1-8b-instant", "openai": "gpt-4.1-nano"}

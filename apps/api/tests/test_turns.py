@@ -136,3 +136,28 @@ def test_correct_answer_sees_question_wording_and_type(trial_version):  # noqa: 
     assert 'num_children' not in fn.description  # not answered yet
     assert 'children_school: "Do any children in your household go to school?" (select_one) = yes' in fn.description
     assert 'hh_size: "How many people live in your household, including you?" (integer) = 5' in fn.description
+
+
+def test_smart_turn_verdict_survives_a_late_turn_start():
+    """Latency, Nov 3: the turn starts on the transcript, after VAD's stop; Pipecat's reset then fell
+    back to a 0.8 s timer that ignored Smart Turn."""
+    from app.voice.turns import VerdictKeepingStopStrategy
+    s = TurnPolicy(sample_rate=8000).strategies().stop[0]
+    assert isinstance(s, VerdictKeepingStopStrategy)
+    s._vad_stopped, s._vad_user_speaking, s._turn_complete = True, False, True
+    asyncio.run(s.handle_user_turn_started())
+    assert s._turn_complete and s._vad_stopped               # verdict kept: a final transcript ends the turn now
+    s._vad_user_speaking = True                               # a turn starting while they speak resets as usual
+    asyncio.run(s.handle_user_turn_started())
+    assert not s._turn_complete
+
+
+def test_fixed_words_are_spoken_without_another_llm_call(trial_version):  # noqa: F811
+    bot = Bot(trial_version, "en")
+    bot.open()
+    bot.answer("yes")
+    res = bot.answer("200")
+    assert res["status"] == "invalid"
+    say = [a["text"] for a in bot.node["pre_actions"] if a["type"] == "tts_say"]
+    assert say == ["Please tell me an age between 18 and 100."] and bot.node["respond_immediately"] is False
+    assert bot.node_name == "q:age" and bot.answer("34")["status"] == "ok"

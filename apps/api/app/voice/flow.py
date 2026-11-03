@@ -169,10 +169,9 @@ class SurveyFlow:
             "speak slower call slow_down; says they don't know or don't want to answer call "
             "dont_know_or_refuse; wants to change an earlier answer call correct_answer; asks to be "
             "called later call call_back_later. If they ask what the question means, explain it "
-            "briefly without changing its meaning. If a tool returns status 'invalid' or "
-            "'confirm', say its 'say' text and wait for the answer. If it returns 'not_confirmed', "
-            "the respondent didn't confirm: ask the question again in your own short words and wait. "
-            "Only set confirmed=true when the respondent said yes to the value you read back.")
+            "briefly without changing its meaning. When a tool returns 'invalid', 'confirm' or "
+            "'not_confirmed', the system speaks the next words itself: say nothing and wait. "
+            "Only set confirmed=true when the respondent said yes to the value read back to them.")
         return "\n".join(lines)
 
     # ------------------------------------------------------------------ nodes
@@ -223,6 +222,26 @@ class SurveyFlow:
             "functions": self.functions(item),
             "pre_actions": [{"type": "function", "handler": mark},
                             {"type": "tts_say", "text": _escape(text)}],
+            "respond_immediately": False,
+        }
+
+    def say_node(self, item: Item, text: str) -> NodeConfig:
+        """Stay on `item` and say `text` (a read-back, a range message) without an LLM round-trip.
+
+        The words are fixed by the form or the check, so asking the LLM to phrase them only adds a
+        second completion (~1.3 s with Gemini Flash Lite). The context is kept so the LLM knows what
+        was just asked when the reply comes in."""
+        async def keep(action: dict, flow_manager: FlowManager) -> None:
+            self.s.asking(item)
+
+        return {
+            "name": "opening" if item.name == self.consent_name else f"q:{item.name}{list(item.index) if item.index else ''}",
+            "context_strategy": ContextStrategyConfig(strategy=ContextStrategy.APPEND),
+            "task_messages": [{"role": "developer", "content":
+                               f'You (the agent) just said to the respondent: "{text}". Wait for their reply, '
+                               f'then handle it for the current question "{item.name}".'}],
+            "functions": self.functions(item),
+            "pre_actions": [{"type": "function", "handler": keep}, {"type": "tts_say", "text": _escape(text)}],
             "respond_immediately": False,
         }
 
@@ -340,16 +359,15 @@ class SurveyFlow:
             # "5?" → "No." was recorded as confirmed).
             if not confirmation_holds(heard, self.read_back[item.key], label):
                 self.read_back.pop(item.key, None)
-                return {"status": "not_confirmed",
-                        "say": f"Ask the question again: {item.text}"}, None
+                return {"status": "not_confirmed"}, self.question_node(item)
         if (item.type == "select_one" and not confirmed and confidence is not None
                 and confidence < self.cfg.confirm_below_confidence):
             self.read_back[item.key] = value
-            return {"status": "confirm", "say": f"{label or value}?"}, None
+            return {"status": "confirm", "say": f"{label or value}?"}, self.say_node(item, f"{label or value}?")
         if not confirmed and (check := number_mismatch(item, value, heard)) is not None:
             # The digits the speech model heard disagree with the LLM's number: ask, don't guess.
             self.read_back[item.key] = check
-            return {"status": "confirm", "say": f"{check}?"}, None
+            return {"status": "confirm", "say": f"{check}?"}, self.say_node(item, f"{check}?")
         self.read_back.pop(item.key, None)
         res = self.runner.answer(item.name, value)
         if not res.ok:
@@ -360,7 +378,7 @@ class SurveyFlow:
                 self.runner.code(item.name, UNCLEAR)
                 self.s.save_answer(item, code=UNCLEAR, heard_text=heard, confidence=confidence, flagged=True)
                 return {"status": "ok"}, self.advance(phrase(self.lang, "move_on"))
-            return {"status": "invalid", "say": res.message}, None
+            return {"status": "invalid", "say": res.message}, self.say_node(item, res.message)
         self.s.save_answer(item, value=res.value, heard_text=heard, confidence=confidence, confirmed=confirmed)
         if item.name == self.consent_name and str(res.value).lower() not in AFFIRMATIVE:
             return {"status": "ok"}, self.end_node("refused")

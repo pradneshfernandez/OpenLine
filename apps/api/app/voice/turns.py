@@ -63,6 +63,24 @@ class ProtectedSpeechMute(BaseUserMuteStrategy):
         return self.protect and self._bot_speaking
 
 
+class VerdictKeepingStopStrategy(TurnAnalyzerUserTurnStopStrategy):
+    """Smart Turn stop strategy that survives a turn starting after the respondent stopped.
+
+    Our start strategy is transcript-based (two words to interrupt), so the user turn often starts
+    only when the final transcript lands, after VAD already reported the stop and Smart Turn gave its
+    verdict. Pipecat resets both at turn start and then falls back to a fixed timer
+    (STT p99 − VAD stop_secs = 0.8 s) that ignores Smart Turn. Keeping the verdict ends a finished
+    answer as soon as the finalized transcript arrives, and keeps waiting when Smart Turn said the
+    respondent wasn't done (a thinking pause).
+    """
+
+    async def handle_user_turn_started(self):
+        if self._vad_stopped and not self._vad_user_speaking:
+            self._text = ""  # the turn is the speech VAD just ended: keep its end-of-turn verdict
+            return
+        await super().handle_user_turn_started()
+
+
 class TurnPolicy:
     """Owns the turn analyzer and mute strategy for one call; the flow tells it what's being asked."""
 
@@ -75,7 +93,7 @@ class TurnPolicy:
     def strategies(self) -> UserTurnStrategies:
         return UserTurnStrategies(
             start=[MinWordsUserTurnStartStrategy(min_words=INTERRUPT_MIN_WORDS)],
-            stop=[TurnAnalyzerUserTurnStopStrategy(turn_analyzer=self.analyzer)],
+            stop=[VerdictKeepingStopStrategy(turn_analyzer=self.analyzer)],
         )
 
     def asking(self, item: Item | None, protect: bool = False) -> None:
