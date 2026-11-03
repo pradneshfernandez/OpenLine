@@ -12,7 +12,7 @@ an LLM interprets, the form decides, Gnani Timbre speaks, all on Pipecat.
 ![Pipecat](https://img.shields.io/badge/Pipecat-1.x%20%2B%20Flows-1f4fa3)
 ![Gnani](https://img.shields.io/badge/Gnani-Prisma%20%2B%20Timbre-ffcc00)
 ![React](https://img.shields.io/badge/React-Mantine-61DAFB?logo=react&logoColor=black)
-![Tests](https://img.shields.io/badge/tests-179%20passing-2a8a4d)
+![Tests](https://img.shields.io/badge/tests-184%20passing-2a8a4d)
 
 <img src="assets/readme/demo.png" alt="The OpenLine demo page during a call: the conversation on the right, coded answers below, a checklist of things to try on the left" width="900">
 
@@ -50,15 +50,17 @@ reword or answer a question itself.
 | | |
 | --- | --- |
 | <img src="assets/readme/feature_flows.gif" width="420"> | **Pipecat Flows, one node per question.** Questions are spoken word for word; skip logic, ranges and corrections (“sorry, I'm 35, not 25”) run in the form runner. Each question starts with a fresh LLM context plus one line of answers so far. |
-| <img src="assets/readme/feature_turn_detection.gif" width="420"> | **Turn detection.** Smart Turn v3.2 decides whether you've finished from the audio itself, and the longest silence it waits depends on the question: 1.2 s for yes/no, up to 3.5 s for open answers. |
+| <img src="assets/readme/feature_turn_detection.gif" width="420"> | **Turn detection.** Smart Turn v3.2 judges from the audio whether you sound finished, and an answer whose transcript ends on a connecting word ("and", "the", "umm", "और") keeps the line open. Smart Turn reads intonation, so on its own it missed 3 in 4 unfinished answers spoken with a falling tone in our 8 kHz test. The longest silence it waits depends on the question: 1.2 s for yes/no, up to 3.5 s for open answers. |
 | <img src="assets/readme/feature_interruptions.gif" width="420"> | **Interruptions.** Two or more words stop the agent; a one-word “haan” while it speaks doesn't. Consent and goodbye can't be talked over. |
 | <img src="assets/readme/feature_accuracy_checks.gif" width="420"> | **Accuracy checks.** Numbers are checked against the digits in the transcript and read back when they disagree; a read-back needs a real yes. Three invalid answers become “unclear” and go to review. After the call, every answer clip is transcribed again. |
-| <img src="assets/readme/code_switching.gif" width="420"> | **Code-switching.** With `STT_AUTO_LANGUAGE=true`, Prisma v3.0 listens for English, Hindi and Tamil in one sentence. Hindi–English mixing works reliably over the phone path; Tamil inside a mixed sentence was transcribed right in 1 of 3 live calls so far. |
+| <img src="assets/readme/code_switching.gif" width="420"> | **Code-switching.** With `STT_AUTO_LANGUAGE=true`, Prisma v3.0 listens for English, Hindi and Tamil on the same call. In our 8 kHz test, English–Tamil answers were transcribed exactly 15 times out of 16 and English–Hindi 2 of 3. Hindi and Tamil inside one sentence doesn't work yet: one of them comes back in the other's script (`scripts/codeswitch_check.py`). |
 | <img src="assets/readme/price_comparison.gif" width="420"> | **Cost.** An estimate against published per-interview costs of human phone surveys; the sources and assumptions are on the slide. |
 
 Also in the box: XLSForm upload with a 14-rule phone check and an editor, versioning, campaigns with retries
 and callbacks, resume-on-retry, crash cleanup, backup LLM failover, a review queue, CSV and KoboToolbox export,
 and simulated respondents (5 personas, background noise) for testing before any real call.
+
+Barge-in is covered by tests and scripted calls but hasn't yet been tried with a live human voice.
 
 ## Quick start
 

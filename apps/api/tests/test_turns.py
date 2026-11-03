@@ -1,6 +1,7 @@
 """Turn-taking, interruption and answer-check rules (component deep dive §1, §2, §4.3, §7)."""
 
 import asyncio
+import time
 
 from pipecat.flows import ContextStrategy
 from pipecat.frames.frames import BotStartedSpeakingFrame, BotStoppedSpeakingFrame
@@ -161,3 +162,55 @@ def test_fixed_words_are_spoken_without_another_llm_call(trial_version):  # noqa
     say = [a["text"] for a in bot.node["pre_actions"] if a["type"] == "tts_say"]
     assert say == ["Please tell me an age between 18 and 100."] and bot.node["respond_immediately"] is False
     assert bot.node_name == "q:age" and bot.answer("34")["status"] == "ok"
+
+
+def test_unfinished_words_keep_the_line_open():
+    """Nov 3: Smart Turn called 'We are five people and.' (falling tone) finished in 3 of 4 cases."""
+    from app.voice.turns import sounds_unfinished
+    for t in ["We are five people and", "Mostly from the.", "Umm.", "Sorry,", "मैं, मेरी wife, और", "हाँ, लेकिन", "ஆனா"]:
+        assert sounds_unfinished(t), t
+    for t in ["We are 5.", "Two hundred.", "हम पाँच लोग हैं।", "எனக்கு 32 வயசு", "I am thirty-two.", ""]:
+        assert not sounds_unfinished(t), t
+
+
+def _stop_strategy(wait: float):
+    from pipecat.utils.asyncio.task_manager import TaskManager
+    policy = TurnPolicy(sample_rate=8000)
+    policy.wait = wait
+    from app.voice.turns import set_silence_wait
+    set_silence_wait(policy.analyzer, wait)
+    s = policy.strategies().stop[0]
+    tm = TaskManager(loop=asyncio.get_running_loop())
+    s._task_manager = tm
+    fired = []
+
+    async def stopped(*_a, **_k):
+        fired.append(time.time())
+    s.trigger_user_turn_stopped = stopped
+    return s, fired
+
+
+def test_hanging_transcript_waits_out_the_silence_then_ends():
+    async def go():
+        s, fired = _stop_strategy(0.3)
+        s._speech_end, s._turn_complete, s._transcript_finalized = time.time(), True, True
+        s._text = "We are five people and"
+        await s._maybe_trigger_user_turn_stopped()
+        assert not fired                                   # Smart Turn said done; the words say not yet
+        await asyncio.sleep(0.45)
+        assert len(fired) == 1                             # silence wait over: the turn ends
+
+        s2, fired2 = _stop_strategy(0.3)
+        s2._speech_end, s2._turn_complete, s2._transcript_finalized = time.time(), True, True
+        s2._text = "We are 5."
+        await s2._maybe_trigger_user_turn_stopped()
+        assert len(fired2) == 1                            # a finished answer ends at once
+
+        s3, fired3 = _stop_strategy(0.3)
+        s3._speech_end, s3._turn_complete, s3._transcript_finalized = time.time(), True, True
+        s3._text = "Sorry,"
+        await s3._maybe_trigger_user_turn_stopped()
+        await s3._discard_pending_end_of_turn()           # they start speaking again
+        await asyncio.sleep(0.45)
+        assert not fired3
+    asyncio.run(go())

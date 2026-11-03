@@ -1,9 +1,14 @@
 """Turn-taking and interruption rules for a survey call (component deep dive §1–2).
 
-- **End of turn** is decided by Smart Turn v3.2 (audio-based, covers English and Hindi). Its
-  `stop_secs` is the longest silence we wait when the model thinks the respondent isn't done
-  ("hmm… char… nahi, paanch"). That wait depends on the question: a yes/no answer is short,
-  a number or an open answer often comes after a pause.
+- **End of turn**: Smart Turn v3.2 judges from the audio whether the answer sounds finished
+  (trained on English and Hindi among others, not Tamil). Its `stop_secs` is the longest silence
+  we wait when it isn't; that wait depends on the question: a yes/no answer is short, a number or
+  an open answer often comes after a pause.
+- **Unfinished words**: Smart Turn reads intonation, and a fragment said with a falling tone
+  ("We are five people and.") sounds finished to it. Measured Nov 3 on Gnani TTS clips at 8 kHz:
+  every complete answer was called complete, but only ~1 in 4 unfinished ones was caught. So a
+  transcript that ends on a connecting word ("and", "the", "umm", "और", "लेकिन", a trailing
+  comma) keeps the line open for the question's silence wait, whatever Smart Turn said.
 - **Interruptions** need at least 2 words while the agent is speaking, so a backchannel
   ("haan", "hmm", "accha") doesn't stop it. When the agent is silent, one word is an answer.
 - **Protected speech**: while the consent statement (and the goodbye) is read, the respondent's
@@ -11,6 +16,10 @@
 """
 
 from __future__ import annotations
+
+import asyncio
+import re
+import time
 
 from pipecat.audio.turn.smart_turn.base_smart_turn import SmartTurnParams
 from pipecat.audio.turn.smart_turn.local_smart_turn_v3 import LocalSmartTurnAnalyzerV3
@@ -81,6 +90,78 @@ class VerdictKeepingStopStrategy(TurnAnalyzerUserTurnStopStrategy):
         await super().handle_user_turn_started()
 
 
+# Words an answer doesn't end on: the respondent is mid-sentence or thinking.
+HANGING_WORDS = frozenset("""
+and or but so because the a an of to in on at from with for my our is are was were um umm uh uhh
+er hmm like about maybe then
+aur ya lekin par toh ki ka ke mein se matlab yaani jaise
+और या लेकिन पर तो कि की का के में से मतलब यानी जैसे
+அப்புறம் ஆனா மற்றும் அதாவது அப்படின்னா
+""".split())
+_TRAILING = re.compile(r"(,|…|\.\.\.|-|–)\s*$")
+_PUNCT = ".,!?;:…\"'()[]।|-–—"
+
+
+def sounds_unfinished(text: str) -> bool:
+    """True when a transcript stops mid-sentence: a trailing comma/ellipsis or a connecting word."""
+    text = (text or "").strip()
+    if not text:
+        return False
+    if _TRAILING.search(text):
+        return True
+    last = text.split()[-1].strip(_PUNCT).lower()
+    return last in HANGING_WORDS
+
+
+class TranscriptAwareStopStrategy(VerdictKeepingStopStrategy):
+    """Keeps the line open when Smart Turn says "done" but the words say otherwise.
+
+    If the final transcript ends on a connecting word, the turn ends only after the question's
+    silence wait (counted from when the respondent stopped), unless they carry on speaking.
+    """
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self._speech_end = 0.0
+        self._hold_task: asyncio.Task | None = None
+        self._hold_done = False
+
+    def _silence_wait(self) -> float:
+        return float(self._turn_analyzer.params.stop_secs)
+
+    async def _handle_vad_user_stopped_speaking(self, frame):
+        self._speech_end = (getattr(frame, "timestamp", 0) or time.time()) - getattr(frame, "stop_secs", 0)
+        await super()._handle_vad_user_stopped_speaking(frame)
+
+    async def _discard_pending_end_of_turn(self):
+        await self._cancel_hold()
+        self._hold_done = False
+        await super()._discard_pending_end_of_turn()
+
+    async def _cancel_hold(self):
+        if self._hold_task:
+            await self.task_manager.cancel_task(self._hold_task)
+            self._hold_task = None
+
+    async def _maybe_trigger_user_turn_stopped(self):
+        if self._turn_complete and not self._hold_done and sounds_unfinished(self._text):
+            if self._hold_task is None:
+                left = max(0.0, self._silence_wait() - (time.time() - (self._speech_end or time.time())))
+                self._hold_task = self.task_manager.create_task(self._hold(left), f"{self}::_hold")
+            return
+        await super()._maybe_trigger_user_turn_stopped()
+
+    async def _hold(self, seconds: float):
+        try:
+            await asyncio.sleep(seconds)
+        except asyncio.CancelledError:
+            return
+        self._hold_task = None
+        self._hold_done = True
+        if self._text:
+            await self.trigger_user_turn_stopped()
+
+
 class TurnPolicy:
     """Owns the turn analyzer and mute strategy for one call; the flow tells it what's being asked."""
 
@@ -93,7 +174,7 @@ class TurnPolicy:
     def strategies(self) -> UserTurnStrategies:
         return UserTurnStrategies(
             start=[MinWordsUserTurnStartStrategy(min_words=INTERRUPT_MIN_WORDS)],
-            stop=[VerdictKeepingStopStrategy(turn_analyzer=self.analyzer)],
+            stop=[TranscriptAwareStopStrategy(turn_analyzer=self.analyzer)],
         )
 
     def asking(self, item: Item | None, protect: bool = False) -> None:

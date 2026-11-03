@@ -27,14 +27,17 @@ from scripts.gnani_smoke import RATE, Collect, run  # noqa: E402
 VOICE = "Kaveri"
 GAP = b"\x00\x00" * int(RATE * 0.12)  # a short breath between language spans
 
-# The three answers on the code-switching slide: (language, text) spans, and what they mean.
+# The answers on the code-switching slide: (language, text) spans, and what they mean. The last
+# one mixes Hindi and Tamil in one sentence, which Prisma doesn't handle (kept as a known failure).
 ANSWERS = {
-    "hh_size": ([("en-IN", "We are five,"), ("hi-IN", "मैं, मेरी wife, और"), ("ta-IN", "மூன்று பசங்க")],
+    "hh_size": ([("en-IN", "We are five,"), ("hi-IN", "मैं, मेरी wife, और तीन बच्चे")],
                 "me, my wife, and three kids → 5"),
-    "ration_card": ([("ta-IN", "ஆமா, ration card இருக்கு,"), ("hi-IN", "लेकिन BPL नहीं")],
+    "ration_card": ([("ta-IN", "ஆமா, ration card இருக்கு,"), ("en-IN", "but not BPL.")],
                     "yes, we have a ration card, but not BPL → yes"),
-    "main_problem": ([("hi-IN", "पानी की problem,"), ("ta-IN", "தண்ணி வரவே இல்ல")],
-                     "the water problem, water doesn't come at all → verbatim"),
+    "main_problem": ([("ta-IN", "தண்ணி வரவே இல்ல,"), ("en-IN", "the tanker comes only twice a week.")],
+                     "water doesn't come at all, ... → verbatim"),
+    "hi_ta_same_sentence": ([("hi-IN", "पानी की problem,"), ("ta-IN", "தண்ணி வரவே இல்ல")],
+                            "known failure: one language comes back in the other's script"),
 }
 
 
