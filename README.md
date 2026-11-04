@@ -14,6 +14,8 @@ an LLM interprets, the form decides, Gnani Timbre speaks, all on Pipecat.
 ![React](https://img.shields.io/badge/React-Mantine-61DAFB?logo=react&logoColor=black)
 ![Tests](https://img.shields.io/badge/tests-201%20passing-2a8a4d)
 
+**[Project Report (PDF, one page)](Project_Report.pdf)**: the problem, how phone surveys run today, the solution, the cost analysis and what we have tested.
+
 <img src="assets/readme/demo.png" alt="The OpenLine demo page during a call: the conversation on the right, coded answers below, a checklist of things to try on the left" width="900">
 
 </div>
