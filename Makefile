@@ -2,7 +2,12 @@
 API := apps/api
 WEB := apps/web
 
-.PHONY: dev setup db migrate api web test test-api test-web build lint smoke
+.PHONY: try dev setup db migrate api web test test-api test-web build lint smoke
+
+try:            ## Quickest try-out: no Docker or Node, SQLite. Needs GNANI_API_KEY + GEMINI_API_KEY in apps/api/.env
+	@[ -f $(API)/.env ] || { cp $(API)/.env.example $(API)/.env; echo "Created apps/api/.env: add GNANI_API_KEY and GEMINI_API_KEY, then run make try again"; exit 1; }
+	@echo "Open http://localhost:8000/demo"
+	cd $(API) && uv sync -q && FORMS_DATABASE_URL=sqlite:///./openline.db uv run uvicorn app.main:app --port 8000
 
 dev:            ## Start Postgres, API (:8000) and web (:5173); `make dev ARGS=--ngrok` for a tunnel
 	./scripts/dev.sh $(ARGS)

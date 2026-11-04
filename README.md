@@ -22,7 +22,7 @@ an LLM interprets, the form decides, Gnani Timbre speaks, all on Pipecat.
 
 Start the API (see [Quick start](#quick-start)) and open **http://localhost:8000/demo**. Pick one of the 10 languages, press *Start the call*
 and answer a two-minute mock survey over a phone-quality line (8 kHz μ-law, the same pipeline a real call
-uses). You see the conversation, each reply delay, and every answer as it's coded. A checklist ticks off
+uses). You see the conversation and every answer as it's coded. A checklist ticks off
 features as you try them: correcting an answer, saying "pata nahi", mixing languages, staying silent.
 
 To share it, run the server with `FORMS_DEMO_ONLY=true` and tunnel port 8000 (`ngrok http 8000`). Only the
@@ -56,7 +56,7 @@ reword or answer a question itself.
 | <img src="assets/readme/code_switching.gif" width="420"> | **10 languages and code-switching.** A call can run in any language Gnani supports: English, Hindi, Bengali, Gujarati, Kannada, Malayalam, Marathi, Punjabi, Tamil and Telugu. The agent's own phrases and the demo survey exist in all ten (Hindi and English written by us, the other eight first drafts for a native speaker to check), and a live 8 kHz speech round trip (`scripts/gnani_smoke.py`) came back right in each. With `STT_AUTO_LANGUAGE=true`, Prisma v3.0 also listens for English and Hindi mixed into the call's language. In our 8 kHz test, English–Tamil answers were transcribed exactly 15 times out of 16 and English–Hindi 2 of 3. Hindi and Tamil inside one sentence doesn't work yet: one of them comes back in the other's script (`scripts/codeswitch_check.py`). |
 | <img src="assets/readme/feature_recovery.gif" width="420"> | **Recovery.** Silence gets "Sorry, I didn't hear you" and a re-ask; an LLM error fails over to a backup model on a second key or provider; calls left open by a crash are closed as partial with their answers kept; a campaign retry continues from the first unanswered question. |
 | <img src="assets/readme/feature_phone_check.gif" width="420"> | **Phone check.** Upload the XLSForm you already use (ODK, KoboToolbox, SurveyCTO). 14 rules flag what won't work by ear, such as long option lists, grids, images and double questions, in every language before a single call. |
-| <img src="assets/readme/feature_simulations.gif" width="420"> | **Simulations.** Simulated respondents with a known answer key (5 personas, English and Hindi) call the real agent over an 8 kHz μ-law line with background noise. The report gives accuracy by question, language and noise level, every miss, and reply delays. |
+| <img src="assets/readme/feature_simulations.gif" width="420"> | **Simulations.** Simulated respondents with a known answer key (5 personas, English and Hindi) call the real agent over an 8 kHz μ-law line with background noise. The report gives accuracy by question, language and noise level, and every miss. |
 | <img src="assets/readme/price_comparison.gif" width="420"> | **Cost in India.** About ₹60–90 per 10-minute interview (estimate), against ₹80–100 for a human phone team at scale and about ₹350 for a 500-household study once hiring, training and translation are counted (J-PAL South Asia budget). Roughly the same at scale, 4–6× lower for small studies; sources on the slide. |
 
 Also in the box: XLSForm upload with a 14-rule phone check and an editor, versioning, campaigns with retries
@@ -67,8 +67,19 @@ Barge-in is covered by tests and scripted calls but hasn't yet been tried with a
 
 ## Quick start
 
-Needs: Docker, [uv](https://docs.astral.sh/uv/), Node 22+, and the `pipecat-gnani` fork checked out
-next to this repo (`../pipecat-gnani`).
+**Try it in five minutes.** Needs only [uv](https://docs.astral.sh/uv/), a [Gnani](https://gnani.ai) API key
+and a [Gemini](https://aistudio.google.com/apikey) API key (the free tier works).
+
+```bash
+git clone https://github.com/pradneshfernandez/OpenLine && cd OpenLine
+make try                   # creates apps/api/.env the first time: add GNANI_API_KEY and GEMINI_API_KEY
+make try                   # starts the API on SQLite, no Docker
+```
+
+Open **http://localhost:8000/demo**, pick a language and take the example survey
+(`apps/api/sample_forms/demo/openline_demo.xlsx`) yourself, with your mic.
+
+**Full app** (forms, campaigns, review, simulations). Needs Docker, uv and Node 22+:
 
 ```bash
 make setup                 # uv sync + npm install; creates apps/api/.env from .env.example

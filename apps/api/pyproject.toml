@@ -33,7 +33,9 @@ dev = [
 ]
 
 [tool.uv.sources]
-pipecat-gnani = { path = "../../../pipecat-gnani", editable = true }
+# Gnani STT/TTS for Pipecat, with fixes (pradneshfernandez/pipecat-gnani). For local edits, point this at a checkout:
+# pipecat-gnani = { path = "../../../pipecat-gnani", editable = true }
+pipecat-gnani = { git = "https://github.com/pradneshfernandez/pipecat-gnani", rev = "9cad8a49f9c55b885636ed95766c9603621d8d59" }
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

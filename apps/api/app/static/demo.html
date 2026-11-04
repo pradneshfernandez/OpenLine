@@ -221,8 +221,7 @@ function render(d) {
   if (d.turns.length !== lastTurns) {
     lastTurns = d.turns.length;
     $("convo").innerHTML = d.turns.filter((t) => t.speaker !== "system" && t.text).map((t) => {
-      const lat = t.speaker === "agent" && t.latency_ms ? `<span class="chip ${t.latency_ms <= 1500 ? "ok" : t.latency_ms <= 3000 ? "wa" : "da"}">replied in ${(t.latency_ms / 1000).toFixed(1)} s</span>` : "";
-      return `<div class="b ${t.speaker}"><div class="who">${t.speaker === "agent" ? "Agent" : "You"} ${lat}</div>${esc(t.text)}</div>`;
+      return `<div class="b ${t.speaker}"><div class="who">${t.speaker === "agent" ? "Agent" : "You"}</div>${esc(t.text)}</div>`;
     }).join("") || `<p class="empty">Connecting…</p>`;
     $("convo").scrollTop = $("convo").scrollHeight;
   }

@@ -73,6 +73,10 @@ class VoiceSettings(BaseSettings):
 
     @model_validator(mode="after")
     def _resolve_llm_key(self):
+        # Only one key set (e.g. just GEMINI_API_KEY)? Use that provider instead of failing on the default.
+        if not self.llm_api_key and not self.key_for(self.llm_provider):
+            self.llm_provider = next((p for p in ("groq", "google", "openai", "anthropic") if self.key_for(p)),
+                                     self.llm_provider)
         if not self.llm_api_key:
             self.llm_api_key = self.key_for(self.llm_provider)
         return self

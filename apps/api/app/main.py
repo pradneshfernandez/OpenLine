@@ -16,6 +16,10 @@ from app.voice.calls import router as voice_router
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
+    if settings.database_url.startswith("sqlite"):  # quick try-out without Docker: no migrations, tables from the models
+        import app.models  # noqa: F401
+        from app.db import Base, engine
+        Base.metadata.create_all(engine)
     simulation.fail_interrupted_runs()
     recovery.close_interrupted_calls()
     scheduler = asyncio.create_task(campaigns.run_scheduler()) if settings.scheduler else None
